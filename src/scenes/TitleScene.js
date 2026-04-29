@@ -7,6 +7,7 @@ import { Rain } from '../effects/Rain.js';
 import { Lightning } from '../effects/Lightning.js';
 import { NeonGlow } from '../effects/NeonGlow.js';
 import { VolumeControl } from '../ui/VolumeControl.js';
+import { startNewGameAuto } from '../utils/storage.js';
 
 export class TitleScene extends Scene {
   constructor() {
@@ -18,8 +19,10 @@ export class TitleScene extends Scene {
     this.glitchTimer = 0;
     this.glitchActive = false;
     this.promptAlpha = 0;
-    this.promptDir = 1;
+    this.glitchActive = false;
     this.volumeControl = new VolumeControl();
+    this.menuOptions = ['NEW GAME', 'LOAD GAME'];
+    this.selectedIndex = 0;
   }
 
   async enter() {
@@ -42,8 +45,21 @@ export class TitleScene extends Scene {
         this.volumeControl.handleKey(e, this.game.audio);
         return;
       }
-      this.game.audio.playMenuSelect();
-      this.game.switchScene('modeSelect');
+
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        this.selectedIndex = 1 - this.selectedIndex;
+        this.game.audio.playMenuSelect();
+      } else if (e.key === 'Enter' || e.key === ' ') {
+        this.game.audio.playGunshot();
+        if (this.selectedIndex === 0) {
+          // NEW GAME
+          startNewGameAuto();
+          this.game.switchScene('modeSelect');
+        } else {
+          // LOAD GAME
+          this.game.switchScene('fileSelect', { mode: 'load' });
+        }
+      }
     });
   }
 
@@ -145,10 +161,23 @@ export class TitleScene extends Scene {
     ctx.lineTo(W * 0.7, H * 0.68);
     ctx.stroke();
 
-    // Press any key prompt
-    ctx.font = `16px 'Share Tech Mono', monospace`;
-    ctx.fillStyle = `rgba(0, 255, 65, ${this.promptAlpha})`;
-    ctx.fillText('>>> PRESS ANY KEY TO START <<<', W / 2, H * 0.78);
+    // Menu Options
+    ctx.font = `bold 24px 'Share Tech Mono', monospace`;
+    for (let i = 0; i < this.menuOptions.length; i++) {
+      const y = H * 0.75 + i * 40;
+      const selected = i === this.selectedIndex;
+      
+      if (selected) {
+        ctx.fillStyle = COLORS.NEON_GREEN;
+        ctx.shadowColor = COLORS.NEON_GREEN;
+        ctx.shadowBlur = 10;
+        ctx.fillText(`> ${this.menuOptions[i]} <`, W / 2, y);
+        ctx.shadowBlur = 0;
+      } else {
+        ctx.fillStyle = 'rgba(200, 200, 200, 0.5)';
+        ctx.fillText(this.menuOptions[i], W / 2, y);
+      }
+    }
 
     // Version / copyright
     ctx.font = `11px 'Share Tech Mono', monospace`;

@@ -3,7 +3,7 @@
 // ========================================
 import { Scene } from '../core/Game.js';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS, RANKS } from '../utils/constants.js';
-import { saveScore } from '../utils/storage.js';
+import { saveScore, addPoints, getPoints, saveCurrentSlot } from '../utils/storage.js';
 
 export class ResultScene extends Scene {
   constructor() {
@@ -23,11 +23,15 @@ export class ResultScene extends Scene {
     this.statsRevealed = 0;
 
     // Calculate rank
-    const surplus = data.score - data.mode.cost;
-    if (surplus >= RANKS.S.minSurplus) this.rank = RANKS.S;
-    else if (surplus >= RANKS.A.minSurplus) this.rank = RANKS.A;
-    else if (surplus >= RANKS.B.minSurplus) this.rank = RANKS.B;
-    else this.rank = RANKS.FAIL;
+    if (!data.isClear) {
+      this.rank = RANKS.FAIL;
+    } else {
+      const surplus = data.score - data.mode.cost;
+      if (surplus >= RANKS.S.minSurplus) this.rank = RANKS.S;
+      else if (surplus >= RANKS.A.minSurplus) this.rank = RANKS.A;
+      else if (surplus >= RANKS.B.minSurplus) this.rank = RANKS.B;
+      else this.rank = RANKS.FAIL;
+    }
 
     // Save score
     saveScore(data.mode.id, {
@@ -38,6 +42,12 @@ export class ResultScene extends Scene {
       rank: this.rank.label,
     });
 
+    // Add points & Auto-Save
+    this.earnedPoints = data.score;
+    addPoints(this.earnedPoints);
+    this.totalPoints = getPoints();
+    saveCurrentSlot();
+
     const hud = document.getElementById('hud-overlay');
     hud.style.display = 'none';
 
@@ -46,9 +56,9 @@ export class ResultScene extends Scene {
       if (e.key === 'r' || e.key === 'R' || e.key === 'Enter') {
         this.game.audio.playMenuSelect();
         this.game.switchScene('loading', { mode: this.data.mode, character: this.data.character });
-      } else if (e.key === 'Escape' || e.key === 't' || e.key === 'T') {
+      } else if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
         this.game.audio.playMenuSelect();
-        this.game.switchScene('title');
+        this.game.switchScene('saveRoom');
       }
     });
   }
@@ -134,13 +144,13 @@ export class ResultScene extends Scene {
       ctx.stroke();
 
       const stats = [
-        { label: 'SCORE', value: `$${d.score.toLocaleString()}`, color: COLORS.NEON_GREEN },
+        { label: 'SCORE (SP EARNED)', value: `+${d.score.toLocaleString()} SP`, color: COLORS.NEON_GREEN },
         { label: 'COST', value: `-$${d.mode.cost.toLocaleString()}`, color: COLORS.DANGER },
         { label: 'BALANCE', value: `$${surplus.toLocaleString()}`, color: surplus >= 0 ? COLORS.NEON_GREEN : COLORS.DANGER },
         { label: 'KILLS', value: `${d.kills}`, color: COLORS.TEXT_PRIMARY },
         { label: 'ACCURACY', value: `${d.accuracy}%`, color: d.accuracy >= 90 ? COLORS.NEON_GREEN : d.accuracy >= 70 ? COLORS.AMBER : COLORS.DANGER },
         { label: 'MAX COMBO', value: `${d.combo}`, color: COLORS.AMBER },
-        { label: 'KEY/SEC', value: d.mode.timeLimit > 0 ? (d.hits / d.mode.timeLimit).toFixed(1) : '0', color: COLORS.TEXT_PRIMARY },
+        { label: 'TOTAL SP', value: `${this.totalPoints.toLocaleString()} SP`, color: '#cc88ff' },
       ];
 
       ctx.textAlign = 'left';
@@ -186,9 +196,9 @@ export class ResultScene extends Scene {
       ctx.textAlign = 'center';
       ctx.font = `13px 'Share Tech Mono', monospace`;
       ctx.fillStyle = `rgba(0, 255, 65, ${actAlpha * (0.5 + Math.sin(this.time * 3) * 0.2)})`;
-      ctx.fillText('[ENTER / R] RETRY MISSION', W / 2, H - 70);
+      ctx.fillText('[R] RETRY MISSION', W / 2, H - 70);
       ctx.fillStyle = `rgba(150,150,150,${actAlpha * 0.4})`;
-      ctx.fillText('[ESC / T] RETURN TO TITLE', W / 2, H - 45);
+      ctx.fillText('[ENTER / ESC] PROCEED TO SAVE ROOM', W / 2, H - 45);
     }
 
     ctx.restore();

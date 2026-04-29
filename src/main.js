@@ -10,6 +10,8 @@ import { CharacterSelectScene } from './scenes/CharacterSelectScene.js';
 import { LoadingScene } from './scenes/LoadingScene.js';
 import { GameScene } from './scenes/GameScene.js';
 import { ResultScene } from './scenes/ResultScene.js';
+import { FileSelectScene } from './scenes/FileSelectScene.js';
+import { SaveRoomScene } from './scenes/SaveRoomScene.js';
 
 // Initialize game
 const canvas = document.getElementById('game-canvas');
@@ -28,6 +30,8 @@ game.registerScene('characterSelect', new CharacterSelectScene());
 game.registerScene('loading', new LoadingScene());
 game.registerScene('game', new GameScene());
 game.registerScene('result', new ResultScene());
+game.registerScene('fileSelect', new FileSelectScene());
+game.registerScene('saveRoom', new SaveRoomScene());
 
 // Start with title screen
 game.start();

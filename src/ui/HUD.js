@@ -5,7 +5,7 @@ import { COLORS, AUDIO } from '../utils/constants.js';
 
 export class HUD {
   constructor() {
-    this.timerEl = document.getElementById('timer-value');
+    this.statusEl = document.getElementById('status-value');
     this.scoreEl = document.getElementById('score-value');
     this.comboEl = document.getElementById('combo-value');
     this.wordJpEl = document.getElementById('word-japanese');
@@ -23,18 +23,25 @@ export class HUD {
   show() { this.overlay.style.display = 'block'; }
   hide() { this.overlay.style.display = 'none'; }
 
-  updateTimer(seconds, totalTime) {
-    this.timerEl.textContent = Math.ceil(seconds);
-    const ratio = seconds / totalTime;
-    if (ratio < 0.3) {
-      this.timerEl.style.color = COLORS.DANGER;
-      this.timerEl.style.animation = 'pulse-danger 0.5s infinite';
-    } else if (ratio < 0.5) {
-      this.timerEl.style.color = COLORS.AMBER;
-      this.timerEl.style.animation = 'none';
+  updateHP(hp, maxHp) {
+    if (!this.statusEl) return;
+    const ratio = hp / maxHp;
+    if (ratio > 0.75) {
+      this.statusEl.textContent = 'FINE';
+      this.statusEl.style.color = COLORS.NEON_GREEN;
+      this.statusEl.style.animation = 'none';
+    } else if (ratio > 0.5) {
+      this.statusEl.textContent = 'CAUTION';
+      this.statusEl.style.color = '#ffff00'; // Yellow
+      this.statusEl.style.animation = 'none';
+    } else if (ratio > 0.25) {
+      this.statusEl.textContent = 'DANGER';
+      this.statusEl.style.color = COLORS.AMBER; // Orange
+      this.statusEl.style.animation = 'none';
     } else {
-      this.timerEl.style.color = COLORS.NEON_GREEN;
-      this.timerEl.style.animation = 'none';
+      this.statusEl.textContent = 'DANGER';
+      this.statusEl.style.color = COLORS.DANGER; // Red
+      this.statusEl.style.animation = 'pulse-danger 0.5s infinite';
     }
   }
 
@@ -81,12 +88,12 @@ export class HUD {
     setTimeout(() => { this.feedbackEl.style.opacity = '0'; }, 600);
   }
 
-  updateHeartMonitor(dt, combo, timeRatio) {
+  updateHeartMonitor(dt, combo, hpRatio) {
     if (!this.heartCtx) return;
     this.heartTime += dt;
 
     // BPM increases with combo and danger
-    this.heartBPM = 72 + combo * 0.5 + (1 - timeRatio) * 60;
+    this.heartBPM = 72 + combo * 0.5 + (1 - hpRatio) * 60;
     const beatInterval = 60 / this.heartBPM;
 
     // Generate heart signal
@@ -120,7 +127,11 @@ export class HUD {
     }
 
     // Heart line
-    const color = timeRatio < 0.3 ? COLORS.DANGER : COLORS.NEON_GREEN;
+    let color = COLORS.NEON_GREEN;
+    if (hpRatio <= 0.25) color = COLORS.DANGER;
+    else if (hpRatio <= 0.5) color = COLORS.AMBER;
+    else if (hpRatio <= 0.75) color = '#ffff00';
+
     c.strokeStyle = color;
     c.lineWidth = 2;
     c.shadowColor = color;

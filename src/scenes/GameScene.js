@@ -7,13 +7,16 @@ import {
   CREATURE_TYPES, CREATURE_ARRIVE_X,
   CREATURE_SPAWN_X_MIN, CREATURE_SPAWN_X_MAX,
   CREATURE_Y_MIN, CREATURE_Y_MAX,
-  COMBO_BONUS_THRESHOLD, COMBO_TIME_BONUS,
-  BITE_PENALTY, AUDIO, MUTATION_TIME_RATIO,
+  COMBO_BONUS_THRESHOLD, COMBO_HEAL_BONUS,
+  PLAYER_MAX_HP, BITE_DAMAGE, AUDIO, MUTATION_SCORE_RATIO,
 } from '../utils/constants.js';
 import { RomajiMatcher, toRomaji } from '../utils/romanizer.js';
 import { ZombieFeline } from '../entities/ZombieFeline.js';
 import { Cerberus } from '../entities/Cerberus.js';
 import { Tyrant } from '../entities/Tyrant.js';
+import { Licker } from '../entities/Licker.js';
+import { Hunter } from '../entities/Hunter.js';
+import { Nemesis } from '../entities/Nemesis.js';
 import { Rain } from '../effects/Rain.js';
 import { Lightning } from '../effects/Lightning.js';
 import { NeonGlow } from '../effects/NeonGlow.js';
@@ -37,12 +40,12 @@ export class GameScene extends Scene {
     // Character abilities
     this.comboThreshold = this.character.comboThresholdOverride || COMBO_BONUS_THRESHOLD;
     this.comboBonusExtra = this.character.comboBonusExtra || 0;
-    this.bitePenaltyReduction = this.character.bitePenaltyReduction || 0;
-    this.killTimeBonus = this.character.killTimeBonus || 0;
+    this.biteDamageReduction = this.character.biteDamageReduction || 0;
+    this.killHealBonus = this.character.killHealBonus || 0;
 
     // State
-    this.timeRemaining = this.mode.timeLimit;
-    this.totalTime = this.mode.timeLimit;
+    this.hp = PLAYER_MAX_HP;
+    this.maxHp = PLAYER_MAX_HP;
     this.score = 0;
     this.combo = 0;
     this.maxCombo = 0;
@@ -83,7 +86,7 @@ export class GameScene extends Scene {
 
     // HUD
     this.hud.show();
-    this.hud.updateTimer(this.timeRemaining, this.totalTime);
+    this.hud.updateHP(this.hp, this.maxHp);
     this.hud.updateScore(this.score, this.mode.cost);
     this.hud.updateCombo(this.combo);
     this.hud.updateWord('', '', '', '');
@@ -116,12 +119,21 @@ export class GameScene extends Scene {
     const matcher = new RomajiMatcher(word);
 
     // Determine creature type based on game progress
-    const progress = 1 - (this.timeRemaining / this.totalTime);
+    const progress = Math.min(1, this.score / this.mode.targetScore);
     let type, CreatureClass;
 
-    if (progress > 0.7 && romaji.length > 12 && Math.random() < 0.15) {
+    if (progress > 0.8 && romaji.length > 15 && Math.random() < 0.1) {
+      type = CREATURE_TYPES.NEMESIS;
+      CreatureClass = Nemesis;
+    } else if (progress > 0.7 && romaji.length > 12 && Math.random() < 0.15) {
       type = CREATURE_TYPES.TYRANT;
       CreatureClass = Tyrant;
+    } else if (progress > 0.5 && romaji.length > 8 && Math.random() < 0.2) {
+      type = CREATURE_TYPES.HUNTER;
+      CreatureClass = Hunter;
+    } else if (progress > 0.4 && Math.random() < 0.25) {
+      type = CREATURE_TYPES.LICKER;
+      CreatureClass = Licker;
     } else if (progress > 0.3 && Math.random() < 0.3) {
       type = CREATURE_TYPES.CERBERUS;
       CreatureClass = Cerberus;
@@ -208,11 +220,12 @@ export class GameScene extends Scene {
 
       // Combo bonus
       if (this.combo > 0 && this.combo % this.comboThreshold === 0) {
-        const bonus = COMBO_TIME_BONUS + this.comboBonusExtra;
-        this.timeRemaining += bonus;
+        const bonus = COMBO_HEAL_BONUS + this.comboBonusExtra;
+        this.hp = Math.min(this.maxHp, this.hp + bonus);
         this.game.audio.playComboBonus();
-        this.hud.showFeedback(`+${bonus}s SURVIVAL INSTINCT!`, 'bonus');
+        this.hud.showFeedback(`HP +${bonus} SURVIVAL INSTINCT!`, 'bonus');
         this.hud.flashScreen('rgba(0, 255, 65, 0.2)');
+        this.hud.updateHP(this.hp, this.maxHp);
       }
 
       // Update word display
@@ -240,17 +253,27 @@ export class GameScene extends Scene {
       this.hud.updateScore(this.score, this.mode.cost);
       this._checkWeaponUpgrade();
 
-      // Kill time bonus (MOCHI ability)
-      if (this.killTimeBonus > 0) {
-        this.timeRemaining += this.killTimeBonus;
+      // Kill heal bonus (MOCHI ability -> DARKNESSRENI/KUUU ability)
+      if (this.killHealBonus > 0) {
+        this.hp = Math.min(this.maxHp, this.hp + this.killHealBonus);
+        this.hud.updateHP(this.hp, this.maxHp);
       }
 
       // Combo bonus check
       if (this.combo > 0 && this.combo % this.comboThreshold === 0) {
-        const bonus = COMBO_TIME_BONUS + this.comboBonusExtra;
-        this.timeRemaining += bonus;
+        const bonus = COMBO_HEAL_BONUS + this.comboBonusExtra;
+        this.hp = Math.min(this.maxHp, this.hp + bonus);
         this.game.audio.playComboBonus();
-        this.hud.showFeedback(`+${bonus}s SURVIVAL INSTINCT!`, 'bonus');
+        this.hud.showFeedback(`HP +${bonus} SURVIVAL INSTINCT!`, 'bonus');
+        this.hud.flashScreen('rgba(0, 255, 65, 0.2)');
+        this.hud.updateHP(this.hp, this.maxHp);
+      }
+
+      // Check clear condition
+      if (this.score >= this.mode.targetScore) {
+        this.gameOver = true;
+        this._endGame(true); // isClear = true
+        return;
       }
 
       // Find next target
@@ -289,23 +312,24 @@ export class GameScene extends Scene {
     if (this.gameOver) return;
 
     this.gameTime += dt;
-    this.timeRemaining -= dt;
 
-    if (this.timeRemaining <= 0) {
-      this.timeRemaining = 0;
+    if (this.hp <= 0) {
+      this.hp = 0;
       this.gameOver = true;
-      this._endGame();
+      this._endGame(false); // isClear = false
       return;
     }
 
     // Danger mode BGM
-    if (this.timeRemaining <= AUDIO.DANGER_TIME_THRESHOLD) {
+    if (this.hp <= AUDIO.DANGER_HP_THRESHOLD) {
       this.game.audio.setDangerMode(true);
+    } else {
+      this.game.audio.setDangerMode(false);
     }
 
     // Mutation event
-    const timeRatio = this.timeRemaining / this.totalTime;
-    if (!this.mutationTriggered && timeRatio <= MUTATION_TIME_RATIO) {
+    const progress = Math.min(1, this.score / this.mode.targetScore);
+    if (!this.mutationTriggered && progress >= MUTATION_SCORE_RATIO) {
       this.mutationTriggered = true;
       this.hud.showFeedback('⚠ B.O.W. MUTATION DETECTED ⚠', 'warning');
       this.hud.flashScreen('rgba(170, 58, 255, 0.3)');
@@ -318,7 +342,6 @@ export class GameScene extends Scene {
     }
 
     // Spawn logic
-    const progress = 1 - timeRatio;
     const currentSpawnRate = this.mode.spawnRateBase -
       (this.mode.spawnRateBase - this.mode.spawnRateMin) * progress;
 
@@ -337,13 +360,14 @@ export class GameScene extends Scene {
       if (creature.hasArrived() && !creature.dying) {
         creature.kill();
         this.combo = 0;
-        const actualPenalty = Math.max(1, BITE_PENALTY - this.bitePenaltyReduction);
-        this.timeRemaining -= actualPenalty;
+        const actualDamage = Math.max(1, BITE_DAMAGE - this.biteDamageReduction);
+        this.hp -= actualDamage;
         this.game.audio.playBite();
         this.screenShake.trigger(12, 0.4);
         this.hud.flashScreen('rgba(139, 0, 0, 0.4)');
-        this.hud.showFeedback(`BITE! -${actualPenalty}s`, 'damage');
+        this.hud.showFeedback(`BITE! -${actualDamage} HP`, 'damage');
         this.hud.updateCombo(this.combo);
+        this.hud.updateHP(this.hp, this.maxHp);
 
         if (this.currentTarget === creature) {
           this.currentTarget = null;
@@ -372,13 +396,14 @@ export class GameScene extends Scene {
     this.stageBg.update(dt);
 
     // HUD updates
-    this.hud.updateTimer(this.timeRemaining, this.totalTime);
-    this.hud.updateHeartMonitor(dt, this.combo, timeRatio);
+    this.hud.updateHP(this.hp, this.maxHp);
+    this.hud.updateHeartMonitor(dt, this.combo, this.hp / this.maxHp);
   }
 
-  _endGame() {
+  _endGame(isClear) {
     this.game.audio.stopBGM();
     this.game.audio.stopRain();
+    this.isClear = isClear;
 
     setTimeout(() => {
       this.game.switchScene('result', {
@@ -392,8 +417,9 @@ export class GameScene extends Scene {
         accuracy: this.totalHits + this.totalMisses > 0
           ? Math.round((this.totalHits / (this.totalHits + this.totalMisses)) * 100)
           : 0,
+        isClear: this.isClear,
       });
-    }, 1500);
+    }, 2500);
   }
 
   render(ctx) {
@@ -436,20 +462,30 @@ export class GameScene extends Scene {
     // Muzzle flash
     this.muzzleFlash.render(ctx);
 
-    // Game over overlay
+    // Game over / Clear overlay
     if (this.gameOver) {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
       ctx.fillRect(0, 0, W, H);
       ctx.textAlign = 'center';
-      ctx.font = `bold 42px 'Orbitron', sans-serif`;
-      ctx.fillStyle = COLORS.BLOOD_RED_BRIGHT;
-      ctx.shadowColor = COLORS.BLOOD_RED_BRIGHT;
-      ctx.shadowBlur = 20;
-      ctx.fillText('TIME UP', W / 2, H / 2);
+      
+      if (this.isClear) {
+        ctx.font = `bold 42px 'Orbitron', sans-serif`;
+        ctx.fillStyle = COLORS.NEON_GREEN;
+        ctx.shadowColor = COLORS.NEON_GREEN;
+        ctx.shadowBlur = 20;
+        ctx.fillText('MISSION COMPLETE', W / 2, H / 2);
+      } else {
+        ctx.font = `bold 64px 'Orbitron', sans-serif`;
+        ctx.fillStyle = COLORS.BLOOD_RED_BRIGHT;
+        ctx.shadowColor = COLORS.BLOOD_RED_BRIGHT;
+        ctx.shadowBlur = 30;
+        ctx.fillText('YOU ARE DEAD', W / 2, H / 2);
+      }
+      
       ctx.shadowBlur = 0;
       ctx.font = `16px 'Share Tech Mono', monospace`;
       ctx.fillStyle = COLORS.TEXT_DIM;
-      ctx.fillText('CALCULATING RESULTS...', W / 2, H / 2 + 40);
+      ctx.fillText('CALCULATING RESULTS...', W / 2, H / 2 + 50);
     }
 
     ctx.restore();
@@ -466,144 +502,153 @@ export class GameScene extends Scene {
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(0, 45, 25, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 30, 22, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // === Tail (behind body) ===
     ctx.strokeStyle = ch.bodyColor;
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
     if (ch.tailStyle === 'long') {
-      ctx.moveTo(-10, 22);
-      ctx.quadraticCurveTo(-25, 8, -28, -5);
+      ctx.moveTo(-12, 15);
+      ctx.quadraticCurveTo(-26, 2, -28, -10);
     } else if (ch.tailStyle === 'short') {
-      ctx.moveTo(-10, 22);
-      ctx.quadraticCurveTo(-16, 16, -14, 12);
+      ctx.moveTo(-12, 15);
+      ctx.quadraticCurveTo(-18, 10, -16, 6);
     } else if (ch.tailStyle === 'fluffy') {
-      ctx.lineWidth = 6;
-      ctx.moveTo(-10, 22);
-      ctx.quadraticCurveTo(-20, 8, -16, -2);
+      ctx.lineWidth = 8;
+      ctx.moveTo(-12, 15);
+      ctx.quadraticCurveTo(-22, 2, -18, -6);
     } else {
-      ctx.moveTo(-10, 22);
-      ctx.bezierCurveTo(-18, 12, -24, 4, -16, 6);
+      ctx.moveTo(-12, 15);
+      ctx.bezierCurveTo(-20, 5, -28, -5, -18, 0);
     }
     ctx.stroke();
     // Tail stripes
     ctx.strokeStyle = ch.stripeColor;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 1.5;
     ctx.globalAlpha = 0.4;
     ctx.stroke();
     ctx.globalAlpha = 1.0;
     ctx.lineCap = 'butt';
 
-    // === Body (キジトラ) ===
+    // === Body (Chibi / 丸っこい) ===
     ctx.fillStyle = ch.bodyColor;
     ctx.beginPath();
-    ctx.ellipse(0, 10, 18, 25, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 8, 18, 20, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Belly (lighter)
     ctx.fillStyle = ch.bellyColor;
     ctx.beginPath();
-    ctx.ellipse(0, 16, 10, 15, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 14, 12, 14, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body stripes (キジトラ模様)
+    // Body stripes
     ctx.strokeStyle = ch.stripeColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.globalAlpha = 0.45;
-    for (let s = -2; s <= 2; s++) {
+    for (let s = -1; s <= 1; s++) {
       ctx.beginPath();
-      ctx.moveTo(-14, -2 + s * 8);
-      ctx.quadraticCurveTo(0, -6 + s * 8, 14, -2 + s * 8);
+      ctx.moveTo(-14, 1 + s * 7);
+      ctx.quadraticCurveTo(0, -3 + s * 7, 14, 1 + s * 7);
       ctx.stroke();
     }
     ctx.globalAlpha = 1.0;
 
-    // === Head ===
+    // === Head (大きくて可愛い) ===
     ctx.fillStyle = ch.headColor || ch.bodyColor;
     ctx.beginPath();
-    ctx.arc(0, -25, 13, 0, Math.PI * 2);
+    ctx.arc(0, -20, 22, 0, Math.PI * 2);
     ctx.fill();
 
     // Head stripes (M mark)
     ctx.strokeStyle = ch.stripeColor;
-    ctx.lineWidth = 1.3;
+    ctx.lineWidth = 1.5;
     ctx.globalAlpha = 0.45;
     ctx.beginPath();
-    ctx.moveTo(-7, -30);
-    ctx.lineTo(-5, -33);
-    ctx.lineTo(-1, -29);
-    ctx.lineTo(1, -33);
-    ctx.lineTo(5, -33);
-    ctx.lineTo(7, -30);
+    ctx.moveTo(-10, -32);
+    ctx.lineTo(-6, -36);
+    ctx.lineTo(-2, -30);
+    ctx.lineTo(2, -36);
+    ctx.lineTo(6, -36);
+    ctx.lineTo(10, -32);
     ctx.stroke();
+    // Side stripes
+    ctx.beginPath(); ctx.moveTo(-16, -24); ctx.lineTo(-20, -20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(16, -24); ctx.lineTo(20, -20); ctx.stroke();
     ctx.globalAlpha = 1.0;
 
-    // === Ears ===
+    // === Ears (大きめ) ===
     ctx.fillStyle = ch.headColor || ch.bodyColor;
     ctx.beginPath();
-    ctx.moveTo(-9, -35); ctx.lineTo(-13, -48); ctx.lineTo(-3, -37); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-12, -34); ctx.lineTo(-22, -48); ctx.lineTo(-4, -40); ctx.closePath(); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(9, -35); ctx.lineTo(13, -48); ctx.lineTo(3, -37); ctx.closePath(); ctx.fill();
+    ctx.moveTo(12, -34); ctx.lineTo(22, -48); ctx.lineTo(4, -40); ctx.closePath(); ctx.fill();
 
-    // Inner ear (pink)
+    // Inner ear
     ctx.fillStyle = ch.earInner;
     ctx.beginPath();
-    ctx.moveTo(-8, -36); ctx.lineTo(-11, -45); ctx.lineTo(-4, -38); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-11, -36); ctx.lineTo(-18, -46); ctx.lineTo(-6, -39); ctx.closePath(); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(8, -36); ctx.lineTo(11, -45); ctx.lineTo(4, -38); ctx.closePath(); ctx.fill();
+    ctx.moveTo(11, -36); ctx.lineTo(18, -46); ctx.lineTo(6, -39); ctx.closePath(); ctx.fill();
 
-    // === Eyes ===
+    // === Cheeks (可愛いチーク) ===
+    ctx.fillStyle = 'rgba(255, 100, 120, 0.4)';
+    ctx.beginPath(); ctx.ellipse(-14, -12, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(14, -12, 5, 3, 0, 0, Math.PI * 2); ctx.fill();
+
+    // === Eyes (大きく) ===
     // Eye whites
     ctx.fillStyle = '#eeeedd';
-    ctx.beginPath(); ctx.ellipse(-5, -26, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, -26, 3, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-9, -19, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(9, -19, 6, 7, 0, 0, Math.PI * 2); ctx.fill();
 
     // Pupils (colored, glowing)
     ctx.fillStyle = ch.eyeColor;
     ctx.shadowColor = ch.eyeGlow;
-    ctx.shadowBlur = 6;
-    ctx.beginPath(); ctx.ellipse(-5, -26, 1.8, 2.3, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, -26, 1.8, 2.3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.ellipse(-9, -19, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(9, -19, 4, 5.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath(); ctx.arc(-5.5, -27, 0.7, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4.5, -27, 0.7, 0, Math.PI * 2); ctx.fill();
+    // Pupil slit/highlight (キラキラ)
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(-10.5, -20.5, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(7.5, -20.5, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.arc(-8, -16.5, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(10, -16.5, 1, 0, Math.PI * 2); ctx.fill();
 
     // === Nose ===
     ctx.fillStyle = ch.noseColor;
     ctx.beginPath();
-    ctx.moveTo(0, -22); ctx.lineTo(-2.5, -19.5); ctx.lineTo(2.5, -19.5);
+    ctx.moveTo(0, -13); ctx.lineTo(-3.5, -10); ctx.lineTo(3.5, -10);
     ctx.closePath(); ctx.fill();
 
-    // === Mouth ===
+    // === Mouth (可愛いω口) ===
     ctx.strokeStyle = ch.stripeColor;
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(0, -19.5); ctx.lineTo(0, -18);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-3.5, -17); ctx.quadraticCurveTo(0, -15.5, 3.5, -17);
+    ctx.moveTo(-6, -7); ctx.quadraticCurveTo(-3, -3, 0, -7);
+    ctx.quadraticCurveTo(3, -3, 6, -7);
     ctx.stroke();
 
     // Whiskers
-    ctx.strokeStyle = 'rgba(200,180,150,0.35)';
-    ctx.lineWidth = 0.6;
-    ctx.beginPath(); ctx.moveTo(-7, -20); ctx.lineTo(-20, -22); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-7, -19); ctx.lineTo(-20, -19); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(7, -20); ctx.lineTo(20, -22); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(7, -19); ctx.lineTo(20, -19); ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,180,150,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-18, -10); ctx.lineTo(-32, -8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-18, -8); ctx.lineTo(-30, -4); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18, -10); ctx.lineTo(32, -8); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(18, -8); ctx.lineTo(30, -4); ctx.stroke();
 
     // === Gun arm ===
     ctx.strokeStyle = ch.bodyColor;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(10, 0);
-    ctx.lineTo(25, -25);
+    ctx.moveTo(10, 5);
+    ctx.lineTo(25, -20);
     ctx.stroke();
 
     // Gun

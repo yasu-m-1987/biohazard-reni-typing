@@ -3,6 +3,7 @@
 // ========================================
 import { Scene } from '../core/Game.js';
 import { GAME_WIDTH, GAME_HEIGHT, CHARACTERS, COLORS } from '../utils/constants.js';
+import { getPoints, isCharacterUnlocked, unlockCharacter, deductPoints } from '../utils/storage.js';
 import { Rain } from '../effects/Rain.js';
 
 const charList = Object.values(CHARACTERS);
@@ -23,6 +24,7 @@ export class CharacterSelectScene extends Scene {
     this.selectedIndex = 0;
     this.time = 0;
     this.previewAnim = 0;
+    this.points = getPoints();
 
     this._keyUnsub = this.game.input.onKey((e) => {
       const count = charList.length;
@@ -33,22 +35,33 @@ export class CharacterSelectScene extends Scene {
         this.selectedIndex = (this.selectedIndex + 1) % count;
         this.game.audio.playMenuSelect();
       } else if (e.key === 'Enter' || e.key === ' ') {
-        this.game.audio.playGunshot();
-        this.game.switchScene('loading', {
-          mode: this.mode,
-          character: charList[this.selectedIndex],
-        });
+        this._selectOrBuyCharacter(charList[this.selectedIndex]);
       } else if (e.key === 'Escape') {
         this.game.switchScene('modeSelect');
       } else if (e.key >= '1' && e.key <= String(count)) {
         this.selectedIndex = parseInt(e.key) - 1;
-        this.game.audio.playGunshot();
-        this.game.switchScene('loading', {
-          mode: this.mode,
-          character: charList[this.selectedIndex],
-        });
+        this._selectOrBuyCharacter(charList[this.selectedIndex]);
       }
     });
+  }
+
+  _selectOrBuyCharacter(char) {
+    if (isCharacterUnlocked(char.id)) {
+      this.game.audio.playGunshot();
+      this.game.switchScene('loading', {
+        mode: this.mode,
+        character: char,
+      });
+    } else {
+      if (deductPoints(char.unlockCost)) {
+        unlockCharacter(char.id);
+        this.points = getPoints(); // Update points
+        this.game.audio.playMenuSelect(); // Or some buy sound
+        // Visual feedback could be added here
+      } else {
+        this.game.audio.playDryFire(); // Error sound
+      }
+    }
   }
 
   exit() { super.exit(); }
@@ -87,19 +100,34 @@ export class CharacterSelectScene extends Scene {
     ctx.fillStyle = 'rgba(200,200,200,0.5)';
     ctx.fillText(`${this.mode.name} CLASS // CHOOSE YOUR OPERATIVE`, W / 2, 88);
 
+    // Points display
+    ctx.textAlign = 'right';
+    ctx.font = `bold 18px 'Share Tech Mono', monospace`;
+    ctx.fillStyle = COLORS.NEON_GREEN;
+    ctx.fillText(`SP: ${this.points.toLocaleString()}`, W - 40, 60);
+
     // Character cards
     const count = charList.length;
-    const cardW = 220, cardH = 320, gap = 24;
-    const totalW = cardW * count + gap * (count - 1);
-    const startX = (W - totalW) / 2;
-    const cardY = 120;
-
+    // We have 8 characters now, maybe render in two rows or make cards smaller.
+    // Let's use two rows if count > 4
+    const cardsPerRow = 4;
+    const cardW = 200, cardH = 260, gapX = 20, gapY = 20;
+    
     for (let i = 0; i < count; i++) {
       const char = charList[i];
-      const x = startX + i * (cardW + gap);
+      const row = Math.floor(i / cardsPerRow);
+      const col = i % cardsPerRow;
+      
+      const numInRow = Math.min(cardsPerRow, count - row * cardsPerRow);
+      const rowTotalW = cardW * numInRow + gapX * (numInRow - 1);
+      const startX = (W - rowTotalW) / 2;
+      const x = startX + col * (cardW + gapX);
+      const y = 110 + row * (cardH + gapY);
+
       const selected = i === this.selectedIndex;
       const alpha = this.hoverAlpha[i];
       const color = char.accentColor;
+      const unlocked = isCharacterUnlocked(char.id);
 
       // Card background
       ctx.fillStyle = `rgba(10, 15, 25, ${0.85 + alpha * 0.1})`;
@@ -107,7 +135,7 @@ export class CharacterSelectScene extends Scene {
       ctx.lineWidth = selected ? 2 : 1;
 
       ctx.beginPath();
-      ctx.roundRect(x, cardY, cardW, cardH, 8);
+      ctx.roundRect(x, y, cardW, cardH, 8);
       ctx.fill();
       ctx.stroke();
 
@@ -117,42 +145,80 @@ export class CharacterSelectScene extends Scene {
         ctx.shadowBlur = 18;
         ctx.strokeStyle = color;
         ctx.beginPath();
-        ctx.roundRect(x, cardY, cardW, cardH, 8);
+        ctx.roundRect(x, y, cardW, cardH, 8);
         ctx.stroke();
         ctx.shadowBlur = 0;
       }
 
-      // Character preview (cat silhouette)
+      // Character preview
       const cx = x + cardW / 2;
-      const cy = cardY + 100;
-      this._renderCharPreview(ctx, cx, cy, char, selected, alpha);
+      const cy = y + 70;
+      
+      if (!unlocked && !selected) {
+        ctx.globalAlpha = 0.3;
+      }
+      
+      let renderChar = char;
+      if (!unlocked) {
+        renderChar = {
+          ...char,
+          bodyColor: '#111',
+          bellyColor: '#111',
+          stripeColor: '#111',
+          headColor: '#111',
+          earInner: '#111',
+          eyeColor: '#111',
+          eyeGlow: 'transparent',
+          noseColor: '#111',
+          accentColor: '#555'
+        };
+      }
+
+      this._renderCharPreview(ctx, cx, cy, renderChar, selected, alpha);
+      ctx.globalAlpha = 1.0;
+
+      // Lock Overlay
+      if (!unlocked) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(x, y, cardW, cardH, 8);
+        ctx.fill();
+        
+        ctx.textAlign = 'center';
+        ctx.font = `bold 24px 'Orbitron', sans-serif`;
+        ctx.fillStyle = '#ff4444';
+        ctx.fillText('🔒 LOCKED', cx, y + 130);
+        
+        ctx.font = `bold 16px 'Share Tech Mono', monospace`;
+        ctx.fillStyle = this.points >= char.unlockCost ? COLORS.NEON_GREEN : '#888';
+        ctx.fillText(`COST: ${char.unlockCost.toLocaleString()} SP`, cx, y + 160);
+      }
 
       // Name
       ctx.textAlign = 'center';
-      ctx.font = `bold 18px 'Orbitron', sans-serif`;
+      ctx.font = `bold 16px 'Orbitron', sans-serif`;
       ctx.fillStyle = selected ? color : `rgba(200,200,200,${0.4 + alpha * 0.4})`;
-      ctx.fillText(char.name, cx, cardY + 185);
+      ctx.fillText(char.name, cx, y + 140);
 
       // Title
       ctx.font = `11px 'Noto Sans JP', sans-serif`;
       ctx.fillStyle = `rgba(200,200,200,${0.3 + alpha * 0.4})`;
-      ctx.fillText(char.title, cx, cardY + 205);
+      ctx.fillText(char.title, cx, y + 158);
 
       // Description
       ctx.font = `10px 'Noto Sans JP', sans-serif`;
       ctx.fillStyle = `rgba(180,180,180,${0.25 + alpha * 0.3})`;
       const desc = char.description;
-      // Simple word wrap
       if (desc.length > 14) {
-        ctx.fillText(desc.substring(0, 14), cx, cardY + 230);
-        ctx.fillText(desc.substring(14), cx, cardY + 245);
+        ctx.fillText(desc.substring(0, 14), cx, y + 175);
+        ctx.fillText(desc.substring(14), cx, y + 188);
       } else {
-        ctx.fillText(desc, cx, cardY + 235);
+        ctx.fillText(desc, cx, y + 180);
       }
 
       // Ability box
-      if (selected || alpha > 0.3) {
-        const boxY = cardY + 260;
+      if (unlocked && (selected || alpha > 0.3)) {
+        const boxY = y + 200;
         ctx.fillStyle = `rgba(${this._hexToRgb(color)}, ${alpha * 0.1})`;
         ctx.strokeStyle = `rgba(${this._hexToRgb(color)}, ${alpha * 0.3})`;
         ctx.lineWidth = 1;
@@ -173,17 +239,16 @@ export class CharacterSelectScene extends Scene {
       // Number hint
       ctx.font = `10px 'Share Tech Mono', monospace`;
       ctx.fillStyle = `rgba(150,150,150,0.3)`;
-      ctx.fillText(`[${i + 1}]`, cx, cardY + cardH - 8);
+      ctx.fillText(`[${i + 1}]`, cx, y + cardH - 8);
     }
 
     // Selected character spotlight line
-    const selChar = charList[this.selectedIndex];
-    const selX = startX + this.selectedIndex * (cardW + gap) + cardW / 2;
-    ctx.strokeStyle = `rgba(${this._hexToRgb(selChar.accentColor)}, 0.15)`;
+    // Since we have multiple rows, spotlight line is tricky, we can just omit or draw a simple line
+    ctx.strokeStyle = `rgba(${this._hexToRgb(charList[this.selectedIndex].accentColor)}, 0.15)`;
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(selX, cardY + cardH + 10);
-    ctx.lineTo(selX, H - 60);
+    ctx.moveTo(0, H - 60);
+    ctx.lineTo(W, H - 60);
     ctx.stroke();
 
     // Bottom hints
@@ -202,7 +267,7 @@ export class CharacterSelectScene extends Scene {
     ctx.translate(cx, cy);
 
     const breathe = selected ? Math.sin(this.previewAnim * 2) * 2 : 0;
-    const scale = 1.6 + alpha * 0.15;
+    const scale = 1.3 + alpha * 0.15;
     ctx.scale(scale, scale);
     ctx.translate(0, breathe);
 
@@ -214,164 +279,162 @@ export class CharacterSelectScene extends Scene {
 
     // === Tail (behind body) ===
     ctx.strokeStyle = char.bodyColor;
-    ctx.lineWidth = 3.5;
+    ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
     if (char.tailStyle === 'long') {
-      ctx.moveTo(-8, 18);
-      ctx.quadraticCurveTo(-22, 6 + Math.sin(this.previewAnim * 1.5) * 5, -24, -4);
+      ctx.moveTo(-10, 18);
+      ctx.quadraticCurveTo(-26, 6 + Math.sin(this.previewAnim * 1.5) * 5, -28, -6);
     } else if (char.tailStyle === 'short') {
-      ctx.moveTo(-8, 18);
-      ctx.quadraticCurveTo(-14, 14, -12, 10);
+      ctx.moveTo(-10, 18);
+      ctx.quadraticCurveTo(-16, 14, -14, 10);
     } else if (char.tailStyle === 'fluffy') {
-      ctx.lineWidth = 5;
-      ctx.moveTo(-8, 18);
-      ctx.quadraticCurveTo(-18, 6, -14, -2 + Math.sin(this.previewAnim * 1.5) * 3);
+      ctx.lineWidth = 8;
+      ctx.moveTo(-10, 18);
+      ctx.quadraticCurveTo(-22, 6, -18, -2 + Math.sin(this.previewAnim * 1.5) * 3);
     } else { // curled
-      ctx.moveTo(-8, 18);
-      ctx.bezierCurveTo(-16, 10, -22, 2, -14, 5 + Math.sin(this.previewAnim) * 2);
+      ctx.moveTo(-10, 18);
+      ctx.bezierCurveTo(-20, 10, -28, 0, -18, 5 + Math.sin(this.previewAnim) * 2);
     }
     ctx.stroke();
     // Tail stripes
     ctx.strokeStyle = char.stripeColor;
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 1.5;
     ctx.globalAlpha = 0.4;
     ctx.stroke();
     ctx.globalAlpha = 1.0;
     ctx.lineCap = 'butt';
 
-    // === Body (キジトラ) ===
+    // === Body (Chibi / 丸っこい) ===
     ctx.fillStyle = char.bodyColor;
     ctx.beginPath();
-    ctx.ellipse(0, 8, 14, 20, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 12, 16, 18, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Belly (lighter)
     ctx.fillStyle = char.bellyColor;
     ctx.beginPath();
-    ctx.ellipse(0, 14, 8, 12, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 18, 10, 12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body stripes (キジトラ模様)
+    // Body stripes
     ctx.strokeStyle = char.stripeColor;
-    ctx.lineWidth = 1.8;
-    ctx.globalAlpha = 0.5;
-    for (let s = -2; s <= 2; s++) {
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.4;
+    for (let s = -1; s <= 1; s++) {
       ctx.beginPath();
-      ctx.moveTo(-10, -2 + s * 6);
-      ctx.quadraticCurveTo(0, -5 + s * 6, 10, -2 + s * 6);
+      ctx.moveTo(-12, 5 + s * 6);
+      ctx.quadraticCurveTo(0, 1 + s * 6, 12, 5 + s * 6);
       ctx.stroke();
     }
     ctx.globalAlpha = 1.0;
 
-    // === Head ===
+    // === Head (大きくて可愛い) ===
     ctx.fillStyle = char.headColor || char.bodyColor;
     ctx.beginPath();
-    ctx.arc(0, -20, 11, 0, Math.PI * 2);
+    ctx.arc(0, -15, 20, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head stripes (forehead M mark)
+    // Head stripes (M mark)
     ctx.strokeStyle = char.stripeColor;
-    ctx.lineWidth = 1.2;
-    ctx.globalAlpha = 0.5;
-    // M pattern on forehead
+    ctx.lineWidth = 1.5;
+    ctx.globalAlpha = 0.4;
     ctx.beginPath();
-    ctx.moveTo(-6, -26);
-    ctx.lineTo(-4, -28);
-    ctx.lineTo(-1, -25);
-    ctx.lineTo(1, -28);
-    ctx.lineTo(4, -28);
-    ctx.lineTo(6, -26);
+    ctx.moveTo(-10, -26);
+    ctx.lineTo(-6, -30);
+    ctx.lineTo(-2, -24);
+    ctx.lineTo(2, -30);
+    ctx.lineTo(6, -30);
+    ctx.lineTo(10, -26);
     ctx.stroke();
     // Side stripes
-    ctx.beginPath();
-    ctx.moveTo(-8, -22); ctx.lineTo(-10, -20); ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(8, -22); ctx.lineTo(10, -20); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-14, -20); ctx.lineTo(-18, -16); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(14, -20); ctx.lineTo(18, -16); ctx.stroke();
     ctx.globalAlpha = 1.0;
 
-    // === Ears ===
-    // Outer ear (same as body)
+    // === Ears (大きめ) ===
     ctx.fillStyle = char.headColor || char.bodyColor;
     ctx.beginPath();
-    ctx.moveTo(-7, -28); ctx.lineTo(-11, -40); ctx.lineTo(-2, -29); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-12, -28); ctx.lineTo(-20, -42); ctx.lineTo(-4, -33); ctx.closePath(); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(7, -28); ctx.lineTo(11, -40); ctx.lineTo(2, -29); ctx.closePath(); ctx.fill();
+    ctx.moveTo(12, -28); ctx.lineTo(20, -42); ctx.lineTo(4, -33); ctx.closePath(); ctx.fill();
 
-    // Inner ear (pink)
+    // Inner ear
     ctx.fillStyle = char.earInner;
     ctx.beginPath();
-    ctx.moveTo(-6, -29); ctx.lineTo(-9, -37); ctx.lineTo(-3, -30); ctx.closePath(); ctx.fill();
+    ctx.moveTo(-11, -30); ctx.lineTo(-17, -40); ctx.lineTo(-6, -33); ctx.closePath(); ctx.fill();
     ctx.beginPath();
-    ctx.moveTo(6, -29); ctx.lineTo(9, -37); ctx.lineTo(3, -30); ctx.closePath(); ctx.fill();
+    ctx.moveTo(11, -30); ctx.lineTo(17, -40); ctx.lineTo(6, -33); ctx.closePath(); ctx.fill();
 
-    // === Eyes ===
+    // === Cheeks (可愛いチーク) ===
+    ctx.fillStyle = 'rgba(255, 100, 120, 0.4)';
+    ctx.beginPath(); ctx.ellipse(-12, -8, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(12, -8, 4, 2.5, 0, 0, Math.PI * 2); ctx.fill();
+
+    // === Eyes (大きく) ===
     // Eye whites
     ctx.fillStyle = '#eeeedd';
-    ctx.beginPath(); ctx.ellipse(-4, -21, 2.8, 2.8, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(4, -21, 2.8, 2.8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-8, -14, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, -14, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
 
     // Pupils (colored, glowing)
     ctx.fillStyle = char.eyeColor;
     ctx.shadowColor = char.eyeGlow;
-    ctx.shadowBlur = selected ? 10 : 5;
-    ctx.beginPath(); ctx.ellipse(-4, -21, 1.5, 2.0, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(4, -21, 1.5, 2.0, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = selected ? 12 : 6;
+    ctx.beginPath(); ctx.ellipse(-8, -14, 3.5, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(8, -14, 3.5, 4.5, 0, 0, Math.PI * 2); ctx.fill();
     ctx.shadowBlur = 0;
 
-    // Pupil slit highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.beginPath(); ctx.arc(-4.5, -22, 0.6, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(3.5, -22, 0.6, 0, Math.PI * 2); ctx.fill();
+    // Pupil slit/highlight (キラキラ)
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath(); ctx.arc(-9, -15, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(7, -15, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.beginPath(); ctx.arc(-7, -12, 0.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(9, -12, 0.8, 0, Math.PI * 2); ctx.fill();
 
     // === Nose ===
     ctx.fillStyle = char.noseColor;
     ctx.beginPath();
-    ctx.moveTo(0, -16.5); ctx.lineTo(-2, -14.5); ctx.lineTo(2, -14.5);
+    ctx.moveTo(0, -8); ctx.lineTo(-3, -5); ctx.lineTo(3, -5);
     ctx.closePath(); ctx.fill();
 
-    // === Mouth ===
+    // === Mouth (可愛いω口) ===
     ctx.strokeStyle = char.stripeColor;
-    ctx.lineWidth = 0.8;
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.moveTo(0, -14.5); ctx.lineTo(0, -13);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(-3, -12.5); ctx.quadraticCurveTo(0, -11, 3, -12.5);
+    ctx.moveTo(-5, -3); ctx.quadraticCurveTo(-2.5, 0, 0, -3);
+    ctx.quadraticCurveTo(2.5, 0, 5, -3);
     ctx.stroke();
 
     // Whiskers
-    ctx.strokeStyle = 'rgba(200,180,150,0.4)';
-    ctx.lineWidth = 0.5;
-    // Left
-    ctx.beginPath(); ctx.moveTo(-6, -15); ctx.lineTo(-16, -17); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-6, -14); ctx.lineTo(-16, -14); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(-6, -13); ctx.lineTo(-15, -11); ctx.stroke();
-    // Right
-    ctx.beginPath(); ctx.moveTo(6, -15); ctx.lineTo(16, -17); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(6, -14); ctx.lineTo(16, -14); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(6, -13); ctx.lineTo(15, -11); ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,180,150,0.5)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-15, -6); ctx.lineTo(-28, -5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-15, -4); ctx.lineTo(-26, -1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(15, -6); ctx.lineTo(28, -5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(15, -4); ctx.lineTo(26, -1); ctx.stroke();
 
     // === Front paws ===
     ctx.fillStyle = char.bellyColor;
-    ctx.beginPath(); ctx.ellipse(-5, 28, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(5, 28, 4, 3, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-6, 26, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6, 26, 5, 4, 0, 0, Math.PI * 2); ctx.fill();
 
     // Paw pads
     ctx.fillStyle = char.noseColor;
-    ctx.globalAlpha = 0.6;
-    ctx.beginPath(); ctx.arc(-5, 29, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(5, 29, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath(); ctx.arc(-6, 27, 2, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(6, 27, 2, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1.0;
 
     // === Gun (held in right paw) ===
     ctx.fillStyle = '#444';
-    ctx.fillRect(10, -6, 12, 4);
-    ctx.fillRect(12, -3, 3, 6);
+    ctx.fillRect(10, -2, 14, 5);
+    ctx.fillRect(12, 2, 4, 6);
 
     // Gun muzzle detail
-    ctx.fillStyle = '#333';
-    ctx.fillRect(20, -7, 3, 6);
+    ctx.fillStyle = '#222';
+    ctx.fillRect(22, -3, 3, 7);
 
     ctx.restore();
   }

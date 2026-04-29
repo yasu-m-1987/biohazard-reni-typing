@@ -12,7 +12,6 @@ export const MODES = {
     name: 'CIVILIAN',
     subtitle: '一般市民の生存レベル',
     cost: 3000,
-    timeLimit: 60,
     wordLengthMin: 2,
     wordLengthMax: 5,
     targetScore: 3000,
@@ -28,7 +27,6 @@ export const MODES = {
     name: 'SOLDIER',
     subtitle: 'プロの戦闘員レベル',
     cost: 5000,
-    timeLimit: 90,
     wordLengthMin: 5,
     wordLengthMax: 10,
     targetScore: 5000,
@@ -44,7 +42,6 @@ export const MODES = {
     name: 'PROFESSIONAL',
     subtitle: 'エリートエージェント向け',
     cost: 10000,
-    timeLimit: 120,
     wordLengthMin: 10,
     wordLengthMax: 20,
     targetScore: 10000,
@@ -84,12 +81,37 @@ export const CREATURE_TYPES = {
     color: '#5a3a7a',
     glowColor: '#aa3aff',
   },
+  LICKER: {
+    id: 'LICKER',
+    name: 'LICKER',
+    speedMultiplier: 2.2,
+    bountyPerChar: 75,
+    color: '#8b0000',
+    glowColor: '#ff4500',
+  },
+  HUNTER: {
+    id: 'HUNTER',
+    name: 'HUNTER',
+    speedMultiplier: 1.6,
+    bountyPerChar: 90,
+    color: '#006400',
+    glowColor: '#adff2f',
+  },
+  NEMESIS: {
+    id: 'NEMESIS',
+    name: 'NEMESIS',
+    speedMultiplier: 0.4,
+    bountyPerChar: 150,
+    color: '#2f4f4f',
+    glowColor: '#ff00ff',
+  },
 };
 
-// Scoring
-export const COMBO_BONUS_THRESHOLD = 50;  // combo count for time bonus
-export const COMBO_TIME_BONUS = 2;        // seconds added
-export const BITE_PENALTY = 5;            // seconds lost
+// Scoring & HP
+export const PLAYER_MAX_HP = 100;
+export const BITE_DAMAGE = 25;            // HP lost per bite
+export const COMBO_BONUS_THRESHOLD = 50;  // combo count for HP bonus
+export const COMBO_HEAL_BONUS = 10;       // HP recovered
 
 // Rank Thresholds (surplus over cost)
 export const RANKS = {
@@ -121,7 +143,7 @@ export const AUDIO = {
   AMBIENT_RAIN_VOLUME: 0.15,
   BGM_NORMAL_TEMPO: 1.0,
   BGM_DANGER_TEMPO: 1.4,
-  DANGER_TIME_THRESHOLD: 30,  // seconds
+  DANGER_HP_THRESHOLD: 30,  // Switch BGM tempo when HP <= 30
 };
 
 // Physics
@@ -138,7 +160,7 @@ export const CHARACTERS = {
     name: 'RENI',
     title: 'エージェント・レニ',
     description: '元特殊部隊のキジトラ。正確無比なガンアクション。',
-    ability: 'コンボボーナス +1s 追加',
+    ability: 'コンボボーナス 回復量+5 追加',
     eyeColor: '#66dd44',
     eyeGlow: '#66dd44',
     bodyColor: '#8B6914',       // キジトラのベース茶色
@@ -149,16 +171,17 @@ export const CHARACTERS = {
     accentColor: '#00ccff',
     earInner: '#D4A0A0',
     tailStyle: 'long',
+    unlockCost: 0,
     // Gameplay bonus
-    comboBonusExtra: 1,
-    bitePenaltyReduction: 0,
+    comboBonusExtra: 5,
+    biteDamageReduction: 0,
   },
   AKATI: {
     id: 'AKATI',
     name: 'AKATI',
     title: 'コマンダー・アカチ',
     description: '歴戦のキジトラ指揮官。鉄壁の防御力。',
-    ability: '咬みつきペナルティ -2s 軽減',
+    ability: '咬みつきダメージ -5 軽減',
     eyeColor: '#FFAA00',
     eyeGlow: '#FFAA00',
     bodyColor: '#9B7020',       // やや赤みがかったキジトラ
@@ -169,8 +192,9 @@ export const CHARACTERS = {
     accentColor: '#ff6600',
     earInner: '#CC8888',
     tailStyle: 'short',
+    unlockCost: 0,
     comboBonusExtra: 0,
-    bitePenaltyReduction: 2,
+    biteDamageReduction: 5,
   },
   SIZUCHUN: {
     id: 'SIZUCHUN',
@@ -188,16 +212,17 @@ export const CHARACTERS = {
     accentColor: '#cc00ff',
     earInner: '#C09090',
     tailStyle: 'fluffy',
+    unlockCost: 0,
     comboBonusExtra: 0,
-    bitePenaltyReduction: 0,
+    biteDamageReduction: 0,
     comboThresholdOverride: 40,
   },
   KUUU: {
     id: 'KUUU',
     name: 'KUUU',
     title: 'ドクター・クゥゥ',
-    description: '天才キジトラ科学者。時間回復のプロ。',
-    ability: 'キル毎に +0.3s 回復',
+    description: '天才キジトラ科学者。体力回復のプロ。',
+    ability: 'キル毎に HP+1 回復',
     eyeColor: '#44ee88',
     eyeGlow: '#44ee88',
     bodyColor: '#947018',       // 明るめのキジトラ
@@ -208,14 +233,97 @@ export const CHARACTERS = {
     accentColor: '#00ff88',
     earInner: '#D0A0A0',
     tailStyle: 'curled',
+    unlockCost: 0,
     comboBonusExtra: 0,
-    bitePenaltyReduction: 0,
-    killTimeBonus: 0.3,
+    biteDamageReduction: 0,
+    killHealBonus: 1,
+  },
+  RENU: {
+    id: 'RENU',
+    name: 'RENU',
+    title: 'メディック・レニュ',
+    description: '癒やしのオーラを纏う猫。圧倒的な回復力。',
+    ability: 'コンボボーナス 回復量+15 追加',
+    eyeColor: '#ff88dd',
+    eyeGlow: '#ff88dd',
+    bodyColor: '#EAE5D9',       // 白っぽいベース
+    headColor: '#DCD4C4',
+    stripeColor: '#B0A898',
+    bellyColor: '#FFFFFF',
+    noseColor: '#FFAADD',
+    accentColor: '#ff44aa',
+    earInner: '#FFCADD',
+    tailStyle: 'fluffy',
+    unlockCost: 10000,
+    comboBonusExtra: 15,
+    biteDamageReduction: 0,
+  },
+  RENIMARU: {
+    id: 'RENIMARU',
+    name: 'RENIMARU',
+    title: 'タンク・レニマル',
+    description: '丸っこいフォルムの茶トラ。驚異の耐久力。',
+    ability: '咬みつきダメージ 半減 (-12)',
+    eyeColor: '#55aaff',
+    eyeGlow: '#55aaff',
+    bodyColor: '#D08030',       // 茶トラ
+    headColor: '#C07020',
+    stripeColor: '#804010',
+    bellyColor: '#F0D0A0',
+    noseColor: '#E09090',
+    accentColor: '#ff8800',
+    earInner: '#E0A0A0',
+    tailStyle: 'short',
+    unlockCost: 15000,
+    comboBonusExtra: 0,
+    biteDamageReduction: 12,
+  },
+  RENITARO: {
+    id: 'RENITARO',
+    name: 'RENITARO',
+    title: 'サムライ・レニタロウ',
+    description: 'ハチワレのタフガイ。コンボを繋げやすい。',
+    ability: 'コンボ閾値 30 に軽減',
+    eyeColor: '#eeeeee',
+    eyeGlow: '#ffffff',
+    bodyColor: '#222225',       // 黒
+    headColor: '#1A1A1D',
+    stripeColor: '#111111',
+    bellyColor: '#FFFFFF',      // 白（ハチワレ）
+    noseColor: '#FFAAAA',
+    accentColor: '#ffffff',
+    earInner: '#FFAAAA',
+    tailStyle: 'long',
+    unlockCost: 25000,
+    comboBonusExtra: 0,
+    biteDamageReduction: 0,
+    comboThresholdOverride: 30,
+  },
+  DARKNESSRENI: {
+    id: 'DARKNESSRENI',
+    name: 'DARKNESSRENI',
+    title: '最凶・ダークネスレニ',
+    description: '暗黒に染まったレニ。キルで大量回復。',
+    ability: 'キル毎に HP+3 回復',
+    eyeColor: '#ff0000',
+    eyeGlow: '#ff0000',
+    bodyColor: '#0a0a0a',       // 漆黒
+    headColor: '#000000',
+    stripeColor: '#1a0000',
+    bellyColor: '#111111',
+    noseColor: '#440000',
+    accentColor: '#ff0000',
+    earInner: '#220000',
+    tailStyle: 'curled',
+    unlockCost: 50000,
+    comboBonusExtra: 0,
+    biteDamageReduction: 0,
+    killHealBonus: 3,
   },
 };
 
 // Mutation event
-export const MUTATION_TIME_RATIO = 0.5;  // at 50% time remaining
+export const MUTATION_SCORE_RATIO = 0.5;  // at 50% target score
 
 // Weapons (score-based progression)
 export const WEAPONS = [

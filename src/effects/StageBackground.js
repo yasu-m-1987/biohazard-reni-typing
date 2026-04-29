@@ -16,11 +16,11 @@ export class MansionBackground extends StageBase {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
     // Dark wood gradient
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0c0808'); bg.addColorStop(0.5, '#140e0a'); bg.addColorStop(1, '#0a0604');
+    bg.addColorStop(0, '#1c1616'); bg.addColorStop(0.5, '#261e16'); bg.addColorStop(1, '#16100c');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
     // Wall panels
-    ctx.strokeStyle = 'rgba(80, 50, 30, 0.12)';
+    ctx.strokeStyle = 'rgba(100, 70, 50, 0.2)';
     ctx.lineWidth = 1;
     for (let x = 0; x < W; x += 160) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H * 0.82); ctx.stroke();
@@ -60,9 +60,9 @@ export class MansionBackground extends StageBase {
     ctx.fillStyle = cg; ctx.fillRect(W * 0.5 - 80, 0, 160, 130);
 
     // Floor tiles
-    ctx.fillStyle = '#0e0907';
+    ctx.fillStyle = '#1e140f';
     ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    ctx.strokeStyle = 'rgba(80, 55, 35, 0.1)';
+    ctx.strokeStyle = 'rgba(100, 75, 55, 0.2)';
     for (let x = 0; x < W; x += 60) {
       ctx.beginPath(); ctx.moveTo(x, H * 0.82); ctx.lineTo(x, H); ctx.stroke();
     }
@@ -76,7 +76,7 @@ export class VillageBackground extends StageBase {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
     // Night sky
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#040812'); bg.addColorStop(0.4, '#0a1020'); bg.addColorStop(1, '#080610');
+    bg.addColorStop(0, '#0a1226'); bg.addColorStop(0.4, '#141c36'); bg.addColorStop(1, '#100c20');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
     // Moon
@@ -88,7 +88,7 @@ export class VillageBackground extends StageBase {
     ctx.beginPath(); ctx.arc(W * 0.8, 80, 20, 0, Math.PI * 2); ctx.fill();
 
     // Mountain silhouette
-    ctx.fillStyle = '#0c1018';
+    ctx.fillStyle = '#181c28';
     ctx.beginPath(); ctx.moveTo(0, 280);
     ctx.lineTo(200, 180); ctx.lineTo(400, 230); ctx.lineTo(550, 150);
     ctx.lineTo(700, 200); ctx.lineTo(900, 170); ctx.lineTo(1100, 220);
@@ -100,7 +100,7 @@ export class VillageBackground extends StageBase {
       const hy = H * ht;
       const hw = 50 + Math.sin(hx) * 15;
       const hh = 50 + Math.cos(hx) * 15;
-      ctx.fillStyle = '#0a0e16';
+      ctx.fillStyle = '#141824';
       ctx.fillRect(hx, hy - hh, hw, hh);
       // Roof
       ctx.beginPath(); ctx.moveTo(hx - 5, hy - hh);
@@ -121,10 +121,10 @@ export class VillageBackground extends StageBase {
     }
 
     // Ground (dirt road)
-    ctx.fillStyle = '#0a0810';
+    ctx.fillStyle = '#161420';
     ctx.fillRect(0, H * 0.82, W, H * 0.18);
     // Path stones
-    ctx.fillStyle = 'rgba(60, 50, 40, 0.08)';
+    ctx.fillStyle = 'rgba(80, 70, 60, 0.15)';
     for (let x = 30; x < W; x += 70 + Math.sin(x) * 20) {
       ctx.beginPath();
       ctx.ellipse(x, H * 0.88, 15 + Math.sin(x) * 5, 6, 0, 0, Math.PI * 2);
@@ -139,11 +139,11 @@ export class LabBackground extends StageBase {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
     // Cold metallic
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#080a10'); bg.addColorStop(0.5, '#0a0c14'); bg.addColorStop(1, '#060810');
+    bg.addColorStop(0, '#121620'); bg.addColorStop(0.5, '#181a26'); bg.addColorStop(1, '#101220');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
     // Metal wall panels
-    ctx.strokeStyle = 'rgba(60, 80, 100, 0.12)';
+    ctx.strokeStyle = 'rgba(100, 120, 140, 0.2)';
     ctx.lineWidth = 1;
     for (let x = 0; x < W; x += 200) {
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H * 0.82); ctx.stroke();
@@ -183,9 +183,9 @@ export class LabBackground extends StageBase {
     }
 
     // Floor (metal grating)
-    ctx.fillStyle = '#080a0e';
+    ctx.fillStyle = '#12141a';
     ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    ctx.strokeStyle = 'rgba(60, 80, 100, 0.08)';
+    ctx.strokeStyle = 'rgba(100, 120, 140, 0.15)';
     for (let x = 0; x < W; x += 30) {
       ctx.beginPath(); ctx.moveTo(x, H * 0.82); ctx.lineTo(x, H); ctx.stroke();
     }
@@ -201,11 +201,11 @@ export class CastleBackground extends StageBase {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
     // Dark stone
     const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0a0808'); bg.addColorStop(0.5, '#0e0a0a'); bg.addColorStop(1, '#080606');
+    bg.addColorStop(0, '#181414'); bg.addColorStop(0.5, '#1e1616'); bg.addColorStop(1, '#141010');
     ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
 
     // Stone wall blocks
-    ctx.strokeStyle = 'rgba(70, 60, 50, 0.1)';
+    ctx.strokeStyle = 'rgba(100, 90, 80, 0.2)';
     ctx.lineWidth = 1;
     for (let y = 0; y < H * 0.82; y += 40) {
       const off = (Math.floor(y / 40) % 2) * 50;
@@ -254,9 +254,9 @@ export class CastleBackground extends StageBase {
     ctx.beginPath(); ctx.arc(W * 0.45 + 20, 70, 10, 0, Math.PI * 2); ctx.fill();
 
     // Floor (stone)
-    ctx.fillStyle = '#0a0808';
+    ctx.fillStyle = '#161212';
     ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    ctx.strokeStyle = 'rgba(70, 55, 45, 0.08)';
+    ctx.strokeStyle = 'rgba(100, 80, 70, 0.15)';
     for (let x = 0; x < W; x += 50) {
       ctx.beginPath(); ctx.moveTo(x, H * 0.82); ctx.lineTo(x, H); ctx.stroke();
     }
