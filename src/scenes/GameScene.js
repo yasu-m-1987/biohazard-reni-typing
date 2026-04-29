@@ -19,7 +19,6 @@ import { Hunter } from '../entities/Hunter.js';
 import { Nemesis } from '../entities/Nemesis.js';
 import { Rain } from '../effects/Rain.js';
 import { Lightning } from '../effects/Lightning.js';
-import { NeonGlow } from '../effects/NeonGlow.js';
 import { MuzzleFlash } from '../effects/MuzzleFlash.js';
 import { ScreenShake } from '../effects/ScreenShake.js';
 import { createStageBackground } from '../effects/StageBackground.js';
@@ -65,7 +64,6 @@ export class GameScene extends Scene {
     // Effects
     this.rain = new Rain(GAME_WIDTH, GAME_HEIGHT);
     this.lightning = new Lightning(GAME_WIDTH, GAME_HEIGHT, this.game.audio);
-    this.neon = new NeonGlow(GAME_WIDTH, GAME_HEIGHT);
     this.muzzleFlash = new MuzzleFlash();
     this.screenShake = new ScreenShake();
     this.stageBg = createStageBackground(this.mode.stage);
@@ -390,7 +388,6 @@ export class GameScene extends Scene {
     // Effects
     this.rain.update(dt);
     this.lightning.update(dt);
-    this.neon.update(dt);
     this.muzzleFlash.update(dt);
     this.screenShake.update(dt);
     this.stageBg.update(dt);
@@ -431,8 +428,7 @@ export class GameScene extends Scene {
     // Stage background
     this.stageBg.render(ctx);
 
-    // Neon glow
-    this.neon.render(ctx);
+    // Remove neon glow
 
     // Player zone marker
     ctx.strokeStyle = 'rgba(255, 50, 50, 0.15)';

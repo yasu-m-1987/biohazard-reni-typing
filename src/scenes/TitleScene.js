@@ -5,7 +5,6 @@ import { Scene } from '../core/Game.js';
 import { GAME_WIDTH, GAME_HEIGHT, COLORS } from '../utils/constants.js';
 import { Rain } from '../effects/Rain.js';
 import { Lightning } from '../effects/Lightning.js';
-import { NeonGlow } from '../effects/NeonGlow.js';
 import { VolumeControl } from '../ui/VolumeControl.js';
 import { startNewGameAuto } from '../utils/storage.js';
 
@@ -14,12 +13,11 @@ export class TitleScene extends Scene {
     super();
     this.rain = new Rain(GAME_WIDTH, GAME_HEIGHT);
     this.lightning = null;
-    this.neon = new NeonGlow(GAME_WIDTH, GAME_HEIGHT);
     this.time = 0;
     this.glitchTimer = 0;
     this.glitchActive = false;
     this.promptAlpha = 0;
-    this.glitchActive = false;
+    this.promptDir = 1;
     this.volumeControl = new VolumeControl();
     this.menuOptions = ['NEW GAME', 'LOAD GAME'];
     this.selectedIndex = 0;
@@ -71,7 +69,6 @@ export class TitleScene extends Scene {
     this.time += dt;
     this.rain.update(dt);
     this.lightning.update(dt);
-    this.neon.update(dt);
 
     // Glitch effect timer
     this.glitchTimer -= dt;
@@ -104,8 +101,7 @@ export class TitleScene extends Scene {
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, H * 0.85); ctx.lineTo(W, H * 0.85); ctx.stroke();
 
-    // Neon signs
-    this.neon.render(ctx);
+    // Removed neon signs
 
     // Rain
     this.rain.render(ctx);

@@ -3,262 +3,290 @@
 // ========================================
 import { GAME_WIDTH, GAME_HEIGHT } from '../utils/constants.js';
 
-// --- Base class ---
+// Base class
 class StageBase {
   constructor() { this.time = 0; }
   update(dt) { this.time += dt; }
   render(ctx) {}
 }
 
-// --- 1. Mansion (洋館) ---
+// ----------------------------------------
+// 1. Mansion (洋館)
+// ----------------------------------------
 export class MansionBackground extends StageBase {
   render(ctx) {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
-    // Dark wood gradient
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#1c1616'); bg.addColorStop(0.5, '#261e16'); bg.addColorStop(1, '#16100c');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const floorY = H * 0.5;
 
-    // Wall panels
-    ctx.strokeStyle = 'rgba(100, 70, 50, 0.2)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 160) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H * 0.82); ctx.stroke();
-    }
-    // Wainscoting
-    ctx.fillStyle = 'rgba(60, 35, 20, 0.15)';
-    ctx.fillRect(0, H * 0.55, W, 4);
+    // --- Wall ---
+    const bg = ctx.createLinearGradient(0, 0, 0, floorY);
+    bg.addColorStop(0, '#1a1010');
+    bg.addColorStop(1, '#0d0808');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, floorY);
 
-    // Windows (2 dark windows with moonlight)
-    for (const wx of [W * 0.35, W * 0.65]) {
-      // Window frame
-      ctx.fillStyle = 'rgba(20, 15, 10, 0.8)';
-      ctx.fillRect(wx - 40, 60, 80, 120);
-      // Moonlight glow
-      const a = 0.06 + Math.sin(this.time * 0.5) * 0.02;
-      const grd = ctx.createRadialGradient(wx, 120, 10, wx, 120, 100);
-      grd.addColorStop(0, `rgba(140, 160, 200, ${a})`);
-      grd.addColorStop(1, 'rgba(140, 160, 200, 0)');
-      ctx.fillStyle = grd; ctx.fillRect(wx - 100, 20, 200, 200);
-      // Window panes
-      ctx.strokeStyle = 'rgba(100, 70, 40, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(wx - 35, 65, 70, 110);
-      ctx.beginPath(); ctx.moveTo(wx, 65); ctx.lineTo(wx, 175); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(wx - 35, 120); ctx.lineTo(wx + 35, 120); ctx.stroke();
+    // Wall panels / Columns
+    ctx.strokeStyle = '#221515';
+    ctx.lineWidth = 15;
+    for (let x = 80; x < W; x += 300) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, floorY); ctx.stroke();
+      // Base molding
+      ctx.fillStyle = '#150d0d';
+      ctx.fillRect(x - 20, floorY - 30, 40, 30);
     }
 
-    // Chandelier shadow
-    ctx.strokeStyle = 'rgba(100, 80, 50, 0.08)';
-    ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(W * 0.5, 0); ctx.lineTo(W * 0.5, 40); ctx.stroke();
-    ctx.beginPath(); ctx.arc(W * 0.5, 45, 30, 0, Math.PI * 2); ctx.stroke();
-    // Faint candle flicker
-    const fl = 0.04 + Math.sin(this.time * 8) * 0.015;
-    const cg = ctx.createRadialGradient(W * 0.5, 45, 5, W * 0.5, 45, 80);
-    cg.addColorStop(0, `rgba(255, 180, 80, ${fl})`); cg.addColorStop(1, 'rgba(255, 180, 80, 0)');
-    ctx.fillStyle = cg; ctx.fillRect(W * 0.5 - 80, 0, 160, 130);
+    // Classic Painting
+    ctx.fillStyle = '#2d2218';
+    ctx.fillRect(W * 0.3, 80, 160, 200);
+    ctx.strokeStyle = '#b8860b'; // Gold frame
+    ctx.lineWidth = 10;
+    ctx.strokeRect(W * 0.3, 80, 160, 200);
+    // Painting detail (abstract dark)
+    ctx.fillStyle = '#15100a';
+    ctx.beginPath(); ctx.arc(W * 0.3 + 80, 160, 40, 0, Math.PI*2); ctx.fill();
 
-    // Floor tiles
-    ctx.fillStyle = '#1e140f';
-    ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    ctx.strokeStyle = 'rgba(100, 75, 55, 0.2)';
-    for (let x = 0; x < W; x += 60) {
-      ctx.beginPath(); ctx.moveTo(x, H * 0.82); ctx.lineTo(x, H); ctx.stroke();
-    }
-    ctx.beginPath(); ctx.moveTo(0, H * 0.9); ctx.lineTo(W, H * 0.9); ctx.stroke();
+    // Large Window (moonlight)
+    const wx = W * 0.7;
+    ctx.fillStyle = '#0a1020'; // night sky
+    ctx.fillRect(wx, 50, 200, 250);
+    ctx.strokeStyle = '#111'; // Window frame
+    ctx.lineWidth = 8;
+    ctx.strokeRect(wx, 50, 200, 250);
+    ctx.beginPath(); ctx.moveTo(wx + 100, 50); ctx.lineTo(wx + 100, 300); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(wx, 175); ctx.lineTo(wx + 200, 175); ctx.stroke();
+    
+    // Moonlight rays
+    ctx.fillStyle = 'rgba(150, 180, 255, 0.05)';
+    ctx.beginPath();
+    ctx.moveTo(wx, 50); ctx.lineTo(wx + 200, 50);
+    ctx.lineTo(wx - 100, floorY + 100); ctx.lineTo(wx - 300, floorY + 100);
+    ctx.fill();
+
+    // --- Floor (Red Carpet with Perspective) ---
+    const floorGrad = ctx.createLinearGradient(0, floorY, 0, H);
+    floorGrad.addColorStop(0, '#110505');
+    floorGrad.addColorStop(1, '#330808'); // Deep red carpet
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, floorY, W, H - floorY);
+
+    // Carpet pattern / Wood borders
+    ctx.fillStyle = '#1a100c'; // Wood floor sides
+    ctx.beginPath(); ctx.moveTo(0, floorY); ctx.lineTo(0, H); ctx.lineTo(W*0.1, H); ctx.lineTo(W*0.2, floorY); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W, floorY); ctx.lineTo(W, H); ctx.lineTo(W*0.9, H); ctx.lineTo(W*0.8, floorY); ctx.fill();
   }
 }
 
-// --- 2. Village (スペインの寒村) ---
+// ----------------------------------------
+// 2. Village (寒村)
+// ----------------------------------------
 export class VillageBackground extends StageBase {
   render(ctx) {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
-    // Night sky
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#0a1226'); bg.addColorStop(0.4, '#141c36'); bg.addColorStop(1, '#100c20');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const floorY = H * 0.52;
 
-    // Moon
-    const moonGlow = ctx.createRadialGradient(W * 0.8, 80, 15, W * 0.8, 80, 120);
-    moonGlow.addColorStop(0, 'rgba(200, 210, 230, 0.12)');
-    moonGlow.addColorStop(1, 'rgba(200, 210, 230, 0)');
-    ctx.fillStyle = moonGlow; ctx.fillRect(W * 0.65, 0, 300, 250);
-    ctx.fillStyle = 'rgba(200, 210, 230, 0.15)';
-    ctx.beginPath(); ctx.arc(W * 0.8, 80, 20, 0, Math.PI * 2); ctx.fill();
+    // --- Sky ---
+    const bg = ctx.createLinearGradient(0, 0, 0, floorY);
+    bg.addColorStop(0, '#0a101a');
+    bg.addColorStop(1, '#050a10');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, floorY);
 
-    // Mountain silhouette
-    ctx.fillStyle = '#181c28';
-    ctx.beginPath(); ctx.moveTo(0, 280);
-    ctx.lineTo(200, 180); ctx.lineTo(400, 230); ctx.lineTo(550, 150);
-    ctx.lineTo(700, 200); ctx.lineTo(900, 170); ctx.lineTo(1100, 220);
-    ctx.lineTo(W, 260); ctx.lineTo(W, 400); ctx.lineTo(0, 400); ctx.fill();
+    // Giant Moon
+    ctx.fillStyle = 'rgba(200, 210, 220, 0.4)';
+    ctx.beginPath(); ctx.arc(W * 0.8, 120, 50, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(200, 210, 220, 0.1)';
+    ctx.beginPath(); ctx.arc(W * 0.8, 120, 150, 0, Math.PI * 2); ctx.fill();
 
-    // House silhouettes
-    const houses = [[100, 0.7], [300, 0.65], [500, 0.72], [800, 0.62], [1050, 0.68]];
-    for (const [hx, ht] of houses) {
-      const hy = H * ht;
-      const hw = 50 + Math.sin(hx) * 15;
-      const hh = 50 + Math.cos(hx) * 15;
-      ctx.fillStyle = '#141824';
-      ctx.fillRect(hx, hy - hh, hw, hh);
-      // Roof
-      ctx.beginPath(); ctx.moveTo(hx - 5, hy - hh);
-      ctx.lineTo(hx + hw / 2, hy - hh - 20); ctx.lineTo(hx + hw + 5, hy - hh); ctx.fill();
-      // Window (dim light)
-      if (Math.sin(hx * 3) > 0) {
-        ctx.fillStyle = `rgba(200, 150, 50, ${0.04 + Math.sin(this.time * 2 + hx) * 0.015})`;
-        ctx.fillRect(hx + hw * 0.3, hy - hh + 10, 10, 12);
-      }
-    }
-
-    // Fog layers
-    for (let i = 0; i < 3; i++) {
-      const fy = H * (0.55 + i * 0.1);
-      const fa = 0.03 + Math.sin(this.time * 0.3 + i) * 0.01;
-      ctx.fillStyle = `rgba(120, 130, 150, ${fa})`;
-      ctx.fillRect(0, fy, W, 40);
-    }
-
-    // Ground (dirt road)
-    ctx.fillStyle = '#161420';
-    ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    // Path stones
-    ctx.fillStyle = 'rgba(80, 70, 60, 0.15)';
-    for (let x = 30; x < W; x += 70 + Math.sin(x) * 20) {
+    // Dead Trees / Forest line
+    ctx.fillStyle = '#08080a';
+    for(let i=0; i<15; i++) {
+      const tx = i * 100 + Math.sin(i)*50;
       ctx.beginPath();
-      ctx.ellipse(x, H * 0.88, 15 + Math.sin(x) * 5, 6, 0, 0, Math.PI * 2);
+      ctx.moveTo(tx, floorY);
+      ctx.lineTo(tx + 5, floorY - 150 - Math.random()*100);
+      ctx.lineTo(tx + 15, floorY);
       ctx.fill();
+      // branches
+      ctx.beginPath(); ctx.moveTo(tx+5, floorY-100); ctx.lineTo(tx-20, floorY-130); ctx.strokeStyle='#08080a'; ctx.lineWidth=3; ctx.stroke();
     }
+
+    // Ruined Hut
+    ctx.fillStyle = '#100c0a';
+    ctx.fillRect(W * 0.2, floorY - 150, 250, 150);
+    ctx.beginPath(); ctx.moveTo(W*0.15, floorY-150); ctx.lineTo(W*0.32, floorY-220); ctx.lineTo(W*0.48, floorY-150); ctx.fill();
+    // Campfire glow near hut
+    const fireGlow = 0.3 + Math.sin(this.time * 8) * 0.1;
+    const fg = ctx.createRadialGradient(W*0.55, floorY, 10, W*0.55, floorY, 150);
+    fg.addColorStop(0, `rgba(255, 100, 20, ${fireGlow})`);
+    fg.addColorStop(1, 'rgba(255, 100, 20, 0)');
+    ctx.fillStyle = fg; ctx.fillRect(W*0.3, floorY-150, 400, 300);
+
+    // --- Ground (Mud/Dirt with Perspective) ---
+    const floorGrad = ctx.createLinearGradient(0, floorY, 0, H);
+    floorGrad.addColorStop(0, '#0a0806');
+    floorGrad.addColorStop(1, '#1a1612');
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, floorY, W, H - floorY);
+
+    // Path details
+    ctx.fillStyle = '#120f0d';
+    ctx.beginPath();
+    ctx.moveTo(W*0.4, floorY); ctx.lineTo(W*0.6, floorY);
+    ctx.lineTo(W*0.8, H); ctx.lineTo(W*0.1, H);
+    ctx.fill();
+
+    // Foreground Grass/Rocks
+    ctx.fillStyle = '#050403';
+    ctx.fillRect(0, H - 40, W, 40);
   }
 }
 
-// --- 3. Lab (研究所) ---
+// ----------------------------------------
+// 3. Lab (研究所)
+// ----------------------------------------
 export class LabBackground extends StageBase {
   render(ctx) {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
-    // Cold metallic
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#121620'); bg.addColorStop(0.5, '#181a26'); bg.addColorStop(1, '#101220');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const floorY = H * 0.5;
 
-    // Metal wall panels
-    ctx.strokeStyle = 'rgba(100, 120, 140, 0.2)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < W; x += 200) {
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H * 0.82); ctx.stroke();
-      // Rivets
-      for (let y = 30; y < H * 0.8; y += 80) {
-        ctx.fillStyle = 'rgba(80, 100, 120, 0.08)';
-        ctx.beginPath(); ctx.arc(x + 5, y, 2, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x - 5, y, 2, 0, Math.PI * 2); ctx.fill();
-      }
+    // --- Wall ---
+    const bg = ctx.createLinearGradient(0, 0, 0, floorY);
+    bg.addColorStop(0, '#10151a');
+    bg.addColorStop(1, '#0a0d11');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, floorY);
+
+    // Lab Glass Cylinders
+    for(let i=0; i<3; i++) {
+      const cx = W * 0.2 + i * 350;
+      
+      // Tank back
+      ctx.fillStyle = '#081a10';
+      ctx.fillRect(cx, 100, 150, floorY - 100);
+      
+      // Green liquid
+      const liqH = (floorY - 100) * 0.8;
+      const liqY = floorY - liqH;
+      ctx.fillStyle = `rgba(50, 200, 100, ${0.3 + Math.sin(this.time * 2 + i) * 0.1})`;
+      ctx.fillRect(cx, liqY, 150, liqH);
+      
+      // Tank frame
+      ctx.strokeStyle = '#222d33';
+      ctx.lineWidth = 10;
+      ctx.strokeRect(cx, 100, 150, floorY - 100);
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.moveTo(cx, liqY); ctx.lineTo(cx+150, liqY); ctx.stroke();
+
+      // Bubbles
+      ctx.fillStyle = 'rgba(100, 255, 150, 0.5)';
+      const bubbleY = floorY - ((this.time * 50 + i * 100) % liqH);
+      ctx.beginPath(); ctx.arc(cx + 75, bubbleY, 5, 0, Math.PI*2); ctx.fill();
     }
 
-    // Warning stripe
-    ctx.fillStyle = 'rgba(200, 180, 0, 0.06)';
-    ctx.fillRect(0, H * 0.78, W, 6);
+    // --- Floor (Metal Grating) ---
+    const floorGrad = ctx.createLinearGradient(0, floorY, 0, H);
+    floorGrad.addColorStop(0, '#0a0d11');
+    floorGrad.addColorStop(1, '#1a222c');
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, floorY, W, H - floorY);
 
-    // Alert light (pulsing red)
-    const ra = 0.03 + Math.sin(this.time * 3) * 0.02;
-    const rl = ctx.createRadialGradient(W * 0.15, 30, 5, W * 0.15, 30, 100);
-    rl.addColorStop(0, `rgba(255, 40, 40, ${ra})`); rl.addColorStop(1, 'rgba(255, 40, 40, 0)');
-    ctx.fillStyle = rl; ctx.fillRect(0, 0, W * 0.3, 150);
-    ctx.fillStyle = `rgba(255, 50, 50, ${0.1 + Math.sin(this.time * 3) * 0.06})`;
-    ctx.beginPath(); ctx.arc(W * 0.15, 30, 6, 0, Math.PI * 2); ctx.fill();
-
-    // Monitor screens
-    for (const mx of [W * 0.5, W * 0.7]) {
-      ctx.fillStyle = 'rgba(10, 15, 20, 0.9)';
-      ctx.fillRect(mx - 25, 80, 50, 35);
-      ctx.strokeStyle = 'rgba(0, 200, 100, 0.15)';
-      ctx.strokeRect(mx - 25, 80, 50, 35);
-      // Scanline noise
-      const sa = 0.08 + Math.sin(this.time * 10 + mx) * 0.04;
-      ctx.fillStyle = `rgba(0, 255, 100, ${sa})`;
-      for (let sy = 82; sy < 113; sy += 3) {
-        const sw = 20 + Math.sin(this.time * 5 + sy + mx) * 15;
-        ctx.fillRect(mx - sw / 2, sy, sw, 1);
-      }
+    // Warning Stripes at bottom
+    ctx.fillStyle = '#aa8800';
+    for(let x=0; x<W; x+=80) {
+      ctx.beginPath(); ctx.moveTo(x, H); ctx.lineTo(x+40, H);
+      ctx.lineTo(x+80, H-40); ctx.lineTo(x+40, H-40); ctx.fill();
     }
-
-    // Floor (metal grating)
-    ctx.fillStyle = '#12141a';
-    ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    ctx.strokeStyle = 'rgba(100, 120, 140, 0.15)';
-    for (let x = 0; x < W; x += 30) {
-      ctx.beginPath(); ctx.moveTo(x, H * 0.82); ctx.lineTo(x, H); ctx.stroke();
+    
+    // Grating perspective lines
+    ctx.strokeStyle = '#10151a';
+    ctx.lineWidth = 2;
+    for(let x = -W; x < W*2; x += 60) {
+      ctx.beginPath();
+      ctx.moveTo(W/2, floorY); // Vanishing point
+      ctx.lineTo(x, H);
+      ctx.stroke();
     }
-    for (let y = H * 0.82; y < H; y += 15) {
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    for(let y = floorY; y < H; y += Math.pow((y - floorY)/10, 1.5) + 5) {
+       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
   }
 }
 
-// --- 4. Castle (城) ---
+// ----------------------------------------
+// 4. Castle (古城)
+// ----------------------------------------
 export class CastleBackground extends StageBase {
   render(ctx) {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
-    // Dark stone
-    const bg = ctx.createLinearGradient(0, 0, 0, H);
-    bg.addColorStop(0, '#181414'); bg.addColorStop(0.5, '#1e1616'); bg.addColorStop(1, '#141010');
-    ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+    const floorY = H * 0.48;
 
-    // Stone wall blocks
-    ctx.strokeStyle = 'rgba(100, 90, 80, 0.2)';
-    ctx.lineWidth = 1;
-    for (let y = 0; y < H * 0.82; y += 40) {
-      const off = (Math.floor(y / 40) % 2) * 50;
-      for (let x = off; x < W; x += 100) {
-        ctx.strokeRect(x, y, 100, 40);
+    // --- Wall (Stone Blocks) ---
+    ctx.fillStyle = '#0f0e10';
+    ctx.fillRect(0, 0, W, floorY);
+
+    // Giant Pillars
+    ctx.fillStyle = '#151216';
+    ctx.strokeStyle = '#050405';
+    ctx.lineWidth = 3;
+    for(let x=50; x<W; x+=400) {
+      ctx.fillRect(x, 0, 100, floorY);
+      // Grooves
+      for(let g=x+20; g<x+100; g+=20) {
+        ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, floorY); ctx.stroke();
       }
     }
 
-    // Gothic arches
-    for (const ax of [W * 0.25, W * 0.55, W * 0.85]) {
-      ctx.strokeStyle = 'rgba(80, 60, 50, 0.15)';
-      ctx.lineWidth = 3;
+    // Huge Stained Glass
+    const gx = W * 0.4;
+    ctx.fillStyle = '#150505'; // very dark red glass
+    ctx.beginPath();
+    ctx.moveTo(gx, floorY); ctx.lineTo(gx, 150);
+    ctx.arc(gx + 100, 150, 100, Math.PI, 0);
+    ctx.lineTo(gx + 200, floorY); ctx.fill();
+    
+    // Moon/Storm light passing through
+    const glassLight = 0.1 + Math.sin(this.time) * 0.05;
+    ctx.fillStyle = `rgba(100, 40, 40, ${glassLight})`;
+    ctx.fill();
+    
+    // Glass panes framing
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 8;
+    ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx+100, 50); ctx.lineTo(gx+100, floorY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(gx, 150); ctx.lineTo(gx+200, 150); ctx.stroke();
+
+    // Torches on pillars
+    for(let x=100; x<W; x+=400) {
+      const fi = 0.2 + Math.sin(this.time * 8 + x) * 0.1;
+      const fg = ctx.createRadialGradient(x, 250, 5, x, 250, 120);
+      fg.addColorStop(0, `rgba(255, 120, 30, ${fi})`);
+      fg.addColorStop(1, 'rgba(255, 50, 10, 0)');
+      ctx.fillStyle = fg; ctx.fillRect(x-150, 100, 300, 300);
+      
+      // flame core
+      ctx.fillStyle = `rgba(255, 200, 100, ${fi + 0.5})`;
+      ctx.beginPath(); ctx.arc(x, 250, 8, 0, Math.PI*2); ctx.fill();
+    }
+
+    // --- Floor (Stone perspective) ---
+    const floorGrad = ctx.createLinearGradient(0, floorY, 0, H);
+    floorGrad.addColorStop(0, '#0a0a0c');
+    floorGrad.addColorStop(1, '#1a1a1f');
+    ctx.fillStyle = floorGrad;
+    ctx.fillRect(0, floorY, W, H - floorY);
+
+    // Stone tile perspective
+    ctx.strokeStyle = '#111';
+    ctx.lineWidth = 2;
+    for(let x = -W; x < W*2; x += 150) {
       ctx.beginPath();
-      ctx.moveTo(ax - 40, H * 0.6);
-      ctx.quadraticCurveTo(ax - 40, 100, ax, 60);
-      ctx.quadraticCurveTo(ax + 40, 100, ax + 40, H * 0.6);
+      ctx.moveTo(W/2, floorY); // Vanishing point
+      ctx.lineTo(x, H);
       ctx.stroke();
     }
-
-    // Torches
-    for (const tx of [W * 0.2, W * 0.5, W * 0.8]) {
-      // Bracket
-      ctx.fillStyle = 'rgba(80, 60, 40, 0.2)';
-      ctx.fillRect(tx - 3, 200, 6, 20);
-      // Flame
-      const fi = 0.08 + Math.sin(this.time * 6 + tx) * 0.03;
-      const fg = ctx.createRadialGradient(tx, 195, 3, tx, 195, 50);
-      fg.addColorStop(0, `rgba(255, 150, 40, ${fi})`);
-      fg.addColorStop(0.4, `rgba(255, 80, 20, ${fi * 0.5})`);
-      fg.addColorStop(1, 'rgba(255, 50, 10, 0)');
-      ctx.fillStyle = fg;
-      ctx.fillRect(tx - 50, 150, 100, 100);
-      // Flame shape
-      ctx.fillStyle = `rgba(255, 180, 50, ${fi * 1.5})`;
-      ctx.beginPath();
-      ctx.moveTo(tx - 4, 200);
-      ctx.quadraticCurveTo(tx - 6, 185 + Math.sin(this.time * 8 + tx) * 3, tx, 178 + Math.sin(this.time * 10 + tx) * 2);
-      ctx.quadraticCurveTo(tx + 6, 185 + Math.cos(this.time * 8 + tx) * 3, tx + 4, 200);
-      ctx.fill();
-    }
-
-    // Banner
-    ctx.fillStyle = 'rgba(120, 20, 20, 0.1)';
-    ctx.fillRect(W * 0.45, 40, 40, 80);
-    ctx.fillStyle = 'rgba(180, 150, 50, 0.06)';
-    ctx.beginPath(); ctx.arc(W * 0.45 + 20, 70, 10, 0, Math.PI * 2); ctx.fill();
-
-    // Floor (stone)
-    ctx.fillStyle = '#161212';
-    ctx.fillRect(0, H * 0.82, W, H * 0.18);
-    ctx.strokeStyle = 'rgba(100, 80, 70, 0.15)';
-    for (let x = 0; x < W; x += 50) {
-      ctx.beginPath(); ctx.moveTo(x, H * 0.82); ctx.lineTo(x, H); ctx.stroke();
+    for(let y = floorY; y < H; y += Math.pow((y - floorY)/12, 1.5) + 8) {
+       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
   }
 }

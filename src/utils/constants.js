@@ -150,8 +150,8 @@ export const AUDIO = {
 export const CREATURE_ARRIVE_X = 180;     // x position where creature "arrives" (bites)
 export const CREATURE_SPAWN_X_MIN = 1100; // min x spawn
 export const CREATURE_SPAWN_X_MAX = 1300; // max x spawn
-export const CREATURE_Y_MIN = 200;
-export const CREATURE_Y_MAX = 550;
+export const CREATURE_Y_MIN = 380;
+export const CREATURE_Y_MAX = 650;
 
 // Playable Characters (キジトラ猫ベース)
 export const CHARACTERS = {
