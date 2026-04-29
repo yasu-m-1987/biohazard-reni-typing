@@ -88,74 +88,116 @@ export class AudioManager {
   playGunshot() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    const bufferSize = this.ctx.sampleRate * 0.08;
+    
+    // 1. Sharp click (Transient)
+    const click = this.ctx.createOscillator();
+    click.type = 'square';
+    click.frequency.setValueAtTime(2000, now);
+    click.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+    const clickGain = this.ctx.createGain();
+    clickGain.gain.setValueAtTime(0.8, now);
+    clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.03);
+    click.connect(clickGain); clickGain.connect(this.sfxGain);
+    click.start(now); click.stop(now + 0.05);
+
+    // 2. White Noise Burst (Explosion)
+    const bufferSize = this.ctx.sampleRate * 0.15;
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.1));
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufferSize * 0.15));
     }
     const noise = this.ctx.createBufferSource();
     noise.buffer = buffer;
     const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 2000;
-    filter.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(3000, now);
+    filter.frequency.exponentialRampToValueAtTime(500, now + 0.1);
+    filter.Q.value = 0.5;
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(1.0, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+    gain.gain.setValueAtTime(1.5, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
     noise.connect(filter); filter.connect(gain); gain.connect(this.sfxGain);
-    noise.start(now); noise.stop(now + 0.12);
+    noise.start(now); noise.stop(now + 0.15);
+
+    // 3. Low Sub Punch (Thump)
     const osc = this.ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + 0.06);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(250, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
     const oscGain = this.ctx.createGain();
-    oscGain.gain.setValueAtTime(0.6, now);
-    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+    oscGain.gain.setValueAtTime(1.2, now);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
     osc.connect(oscGain); oscGain.connect(this.sfxGain);
-    osc.start(now); osc.stop(now + 0.1);
+    osc.start(now); osc.stop(now + 0.12);
   }
 
   playShotgun() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
-    // Heavy blast
-    const bufSz = this.ctx.sampleRate * 0.15;
+    
+    // 1. Initial click
+    const click = this.ctx.createOscillator(); click.type = 'sawtooth';
+    click.frequency.setValueAtTime(1000, now); click.frequency.exponentialRampToValueAtTime(100, now + 0.05);
+    const clickGain = this.ctx.createGain(); clickGain.gain.setValueAtTime(1.0, now); clickGain.gain.exponentialRampToValueAtTime(0.01, now + 0.04);
+    click.connect(clickGain); clickGain.connect(this.sfxGain); click.start(now); click.stop(now + 0.05);
+
+    // 2. Heavy blast noise
+    const bufSz = this.ctx.sampleRate * 0.3;
     const buf = this.ctx.createBuffer(1, bufSz, this.ctx.sampleRate);
     const d = buf.getChannelData(0);
-    for (let i = 0; i < bufSz; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSz * 0.08));
+    for (let i = 0; i < bufSz; i++) d[i] = (Math.random() * 2 - 1) * Math.exp(-i / (bufSz * 0.1));
     const n = this.ctx.createBufferSource(); n.buffer = buf;
-    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1200;
-    const g = this.ctx.createGain(); g.gain.setValueAtTime(1.2, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-    n.connect(f); f.connect(g); g.connect(this.sfxGain); n.start(now); n.stop(now + 0.2);
-    // Low boom
-    const o = this.ctx.createOscillator(); o.type = 'sine';
-    o.frequency.setValueAtTime(80, now); o.frequency.exponentialRampToValueAtTime(20, now + 0.12);
-    const og = this.ctx.createGain(); og.gain.setValueAtTime(0.8, now); og.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
-    o.connect(og); og.connect(this.sfxGain); o.start(now); o.stop(now + 0.18);
-    // Pellet scatter
-    for (let i = 0; i < 4; i++) {
-      const t = now + 0.02 + i * 0.01;
-      const p = this.ctx.createOscillator(); p.type = 'triangle';
-      p.frequency.setValueAtTime(3000 + Math.random() * 2000, t);
-      const pg = this.ctx.createGain(); pg.gain.setValueAtTime(0.08, t); pg.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
-      p.connect(pg); pg.connect(this.sfxGain); p.start(t); p.stop(t + 0.04);
-    }
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(3000, now); f.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+    const g = this.ctx.createGain(); g.gain.setValueAtTime(2.0, now); g.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+    n.connect(f); f.connect(g); g.connect(this.sfxGain); n.start(now); n.stop(now + 0.3);
+
+    // 3. Sub-bass massive thump (Two oscillators detuned)
+    [80, 75].forEach(freq => {
+      const o = this.ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(freq, now); o.frequency.exponentialRampToValueAtTime(20, now + 0.15);
+      const og = this.ctx.createGain(); og.gain.setValueAtTime(1.5, now); og.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+      o.connect(og); og.connect(this.sfxGain); o.start(now); o.stop(now + 0.25);
+    });
+
+    // 4. Mechanical pump sound (delayed slightly)
+    setTimeout(() => {
+      if(!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const p = this.ctx.createOscillator(); p.type = 'square';
+      p.frequency.setValueAtTime(800, t); p.frequency.exponentialRampToValueAtTime(200, t + 0.05);
+      const pg = this.ctx.createGain(); pg.gain.setValueAtTime(0.3, t); pg.gain.exponentialRampToValueAtTime(0.01, t + 0.08);
+      p.connect(pg); pg.connect(this.sfxGain); p.start(t); p.stop(t + 0.1);
+    }, 180);
   }
 
   playMachineGun() {
     if (!this.ctx) return;
     const now = this.ctx.currentTime;
     for (let i = 0; i < 3; i++) {
-      const t = now + i * 0.04;
-      const bufSz = this.ctx.sampleRate * 0.04;
+      const t = now + i * 0.07; // slightly slower fire rate for better definition
+      
+      // Crisp click
+      const click = this.ctx.createOscillator(); click.type = 'square';
+      click.frequency.setValueAtTime(2500, t); click.frequency.exponentialRampToValueAtTime(200, t + 0.03);
+      const cg = this.ctx.createGain(); cg.gain.setValueAtTime(0.5, t); cg.gain.exponentialRampToValueAtTime(0.01, t + 0.02);
+      click.connect(cg); cg.connect(this.sfxGain); click.start(t); click.stop(t + 0.03);
+
+      // Noise punch
+      const bufSz = this.ctx.sampleRate * 0.05;
       const buf = this.ctx.createBuffer(1, bufSz, this.ctx.sampleRate);
       const d = buf.getChannelData(0);
-      for (let j = 0; j < bufSz; j++) d[j] = (Math.random() * 2 - 1) * Math.exp(-j / (bufSz * 0.12));
+      for (let j = 0; j < bufSz; j++) d[j] = (Math.random() * 2 - 1) * Math.exp(-j / (bufSz * 0.2));
       const n = this.ctx.createBufferSource(); n.buffer = buf;
-      const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2500;
-      const g = this.ctx.createGain(); g.gain.setValueAtTime(0.7, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+      const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.setValueAtTime(2000, t); f.frequency.exponentialRampToValueAtTime(800, t + 0.04); f.Q.value = 0.8;
+      const g = this.ctx.createGain(); g.gain.setValueAtTime(1.2, t); g.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
       n.connect(f); f.connect(g); g.connect(this.sfxGain); n.start(t); n.stop(t + 0.06);
+
+      // Sub kick
+      const o = this.ctx.createOscillator(); o.type = 'triangle';
+      o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.04);
+      const og = this.ctx.createGain(); og.gain.setValueAtTime(0.9, t); og.gain.exponentialRampToValueAtTime(0.01, t + 0.05);
+      o.connect(og); og.connect(this.sfxGain); o.start(t); o.stop(t + 0.06);
     }
   }
 
