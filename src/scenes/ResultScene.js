@@ -22,20 +22,51 @@ export class ResultScene extends Scene {
     this.revealPhase = 0;
     this.statsRevealed = 0;
 
-    // Calculate rank
+    // Calculate evaluation score
+    this.evaluationScore = 0;
+    this.timeDiff = 0;
+
     if (!data.isClear) {
       this.rank = RANKS.FAIL;
     } else {
-      const surplus = data.score - data.mode.cost;
-      if (surplus >= RANKS.S.minSurplus) this.rank = RANKS.S;
-      else if (surplus >= RANKS.A.minSurplus) this.rank = RANKS.A;
-      else if (surplus >= RANKS.B.minSurplus) this.rank = RANKS.B;
-      else this.rank = RANKS.FAIL;
+      this.timeDiff = data.mode.targetTime - data.time;
+
+      // Accuracy Score (Max 4000)
+      let accuracyScore = 0;
+      if (data.accuracy >= 100) accuracyScore = 4000;
+      else if (data.accuracy >= 95) accuracyScore = 3000;
+      else if (data.accuracy >= 90) accuracyScore = 1500;
+
+      // Damage Score (Max 3000)
+      let damageScore = 0;
+      if (data.damageTaken === 0) damageScore = 3000;
+      else if (data.damageTaken === 1) damageScore = 1500;
+      else if (data.damageTaken === 2) damageScore = 500;
+
+      // Time Score (Bonus for fast clear)
+      let timeScore = 0;
+      if (this.timeDiff > 0) {
+        timeScore = Math.floor(this.timeDiff * 100);
+      }
+
+      this.evaluationScore = accuracyScore + damageScore + timeScore;
+
+      if (this.evaluationScore >= RANKS.SSS.minScore) this.rank = RANKS.SSS;
+      else if (this.evaluationScore >= RANKS.SS.minScore) this.rank = RANKS.SS;
+      else if (this.evaluationScore >= RANKS.S.minScore) this.rank = RANKS.S;
+      else if (this.evaluationScore >= RANKS.A.minScore) this.rank = RANKS.A;
+      else if (this.evaluationScore >= RANKS.B.minScore) this.rank = RANKS.B;
+      else this.rank = RANKS.C;
     }
+
+    // Reward calculation
+    const baseReward = data.mode.baseReward || 3000;
+    this.rankBonus = this.rank.bonusRate > -1 ? Math.floor(baseReward * this.rank.bonusRate) : 0;
+    this.earnedPoints = this.rank === RANKS.FAIL ? 0 : Math.max(0, baseReward + this.rankBonus);
 
     // Save score
     saveScore(data.mode.id, {
-      score: data.score,
+      score: this.evaluationScore,
       kills: data.kills,
       accuracy: data.accuracy,
       maxCombo: data.combo,
@@ -43,7 +74,6 @@ export class ResultScene extends Scene {
     });
 
     // Add points & Auto-Save
-    this.earnedPoints = data.score;
     addPoints(this.earnedPoints);
     this.totalPoints = getPoints();
     saveCurrentSlot();
@@ -75,7 +105,6 @@ export class ResultScene extends Scene {
   render(ctx) {
     const W = GAME_WIDTH, H = GAME_HEIGHT;
     const d = this.data;
-    const surplus = d.score - d.mode.cost;
 
     // Background
     ctx.fillStyle = '#030308';
@@ -101,16 +130,28 @@ export class ResultScene extends Scene {
     // Rank display (large, centered)
     if (this.revealPhase > 0.3) {
       const rankAlpha = Math.min(1, (this.revealPhase - 0.3) / 0.3);
-      const rankColor = this.rank === RANKS.S ? '#ffd700'
-        : this.rank === RANKS.A ? COLORS.NEON_GREEN
-        : this.rank === RANKS.B ? COLORS.AMBER
-        : COLORS.BLOOD_RED_BRIGHT;
+      let rankColor = COLORS.BLOOD_RED_BRIGHT;
+      if (this.rank === RANKS.SSS) rankColor = '#ffbb00';
+      else if (this.rank === RANKS.SS) rankColor = '#ff66aa';
+      else if (this.rank === RANKS.S) rankColor = '#ffd700';
+      else if (this.rank === RANKS.A) rankColor = COLORS.NEON_GREEN;
+      else if (this.rank === RANKS.B) rankColor = COLORS.AMBER;
+      else if (this.rank === RANKS.C) rankColor = COLORS.TEXT_PRIMARY;
 
       // Rank letter
       ctx.font = `900 100px 'Orbitron', sans-serif`;
       ctx.fillStyle = `rgba(${this._hexToRgb(rankColor)}, ${rankAlpha})`;
-      ctx.shadowColor = rankColor;
-      ctx.shadowBlur = 30 * rankAlpha;
+      
+      // SSS/SS effects
+      if (this.rank === RANKS.SSS || this.rank === RANKS.SS) {
+        ctx.shadowColor = rankColor;
+        ctx.shadowBlur = 40 * rankAlpha + Math.sin(this.time * 5) * 10;
+        ctx.fillStyle = `hsl(${this.time * 100 % 360}, 100%, 70%)`;
+      } else {
+        ctx.shadowColor = rankColor;
+        ctx.shadowBlur = 30 * rankAlpha;
+      }
+
       ctx.fillText(this.rank.label === '-' ? '✕' : this.rank.label, W / 2, 190);
       ctx.shadowBlur = 0;
 
@@ -143,14 +184,26 @@ export class ResultScene extends Scene {
       ctx.fill();
       ctx.stroke();
 
+      const baseReward = d.mode.baseReward || 3000;
+      
+      // Target text
+      let timeText = `${d.time.toFixed(1)}s (Target: ${d.mode.targetTime}s)`;
+      if (this.timeDiff > 0) timeText += ` [-${this.timeDiff.toFixed(1)}s]`;
+      
+      let accuracyText = `${d.accuracy}%`;
+      if (d.accuracy >= 100) accuracyText += ` [PERFECT]`;
+
+      let damageText = `${d.damageTaken}`;
+      if (d.damageTaken === 0) damageText += ` [NO DAMAGE]`;
+
       const stats = [
-        { label: 'SCORE (SP EARNED)', value: `+${d.score.toLocaleString()} SP`, color: COLORS.NEON_GREEN },
-        { label: 'COST', value: `-$${d.mode.cost.toLocaleString()}`, color: COLORS.DANGER },
-        { label: 'BALANCE', value: `$${surplus.toLocaleString()}`, color: surplus >= 0 ? COLORS.NEON_GREEN : COLORS.DANGER },
-        { label: 'KILLS', value: `${d.kills}`, color: COLORS.TEXT_PRIMARY },
-        { label: 'ACCURACY', value: `${d.accuracy}%`, color: d.accuracy >= 90 ? COLORS.NEON_GREEN : d.accuracy >= 70 ? COLORS.AMBER : COLORS.DANGER },
-        { label: 'MAX COMBO', value: `${d.combo}`, color: COLORS.AMBER },
-        { label: 'TOTAL SP', value: `${this.totalPoints.toLocaleString()} SP`, color: '#cc88ff' },
+        { label: 'EVALUATION SCORE', value: `${this.evaluationScore.toLocaleString()} PTS`, color: COLORS.NEON_GREEN },
+        { label: 'CLEAR TIME', value: timeText, color: this.timeDiff > 0 ? COLORS.NEON_GREEN : COLORS.TEXT_PRIMARY },
+        { label: 'DAMAGE TAKEN', value: damageText, color: d.damageTaken === 0 ? COLORS.AMBER : COLORS.DANGER },
+        { label: 'ACCURACY', value: accuracyText, color: d.accuracy >= 100 ? COLORS.AMBER : COLORS.TEXT_PRIMARY },
+        { label: 'BASE REWARD', value: `${baseReward.toLocaleString()} SP`, color: COLORS.TEXT_PRIMARY },
+        { label: 'RANK BONUS', value: `${this.rankBonus > 0 ? '+' : ''}${this.rankBonus.toLocaleString()} SP`, color: this.rankBonus > 0 ? COLORS.NEON_GREEN : (this.rankBonus < 0 ? COLORS.DANGER : COLORS.TEXT_PRIMARY) },
+        { label: 'TOTAL EARNED', value: `+${this.earnedPoints.toLocaleString()} SP`, color: '#cc88ff' },
       ];
 
       ctx.textAlign = 'left';
@@ -158,7 +211,7 @@ export class ResultScene extends Scene {
 
       for (let i = 0; i < Math.min(stats.length, this.statsRevealed); i++) {
         const s = stats[i];
-        const sy = statStartY + i * 28;
+        const sy = statStartY + i * 26;
 
         // Label
         ctx.font = `13px 'Share Tech Mono', monospace`;
@@ -180,12 +233,12 @@ export class ResultScene extends Scene {
         ctx.textAlign = 'left';
       }
 
-      // Divider before balance
-      if (this.statsRevealed >= 3) {
+      // Divider
+      if (this.statsRevealed >= 4) {
         ctx.strokeStyle = `rgba(80,80,80,${panelAlpha * 0.3})`;
         ctx.beginPath();
-        ctx.moveTo(panelX + 20, statStartY + 48);
-        ctx.lineTo(panelX + panelW - 20, statStartY + 48);
+        ctx.moveTo(panelX + 20, statStartY + 3 * 26 + 13);
+        ctx.lineTo(panelX + panelW - 20, statStartY + 3 * 26 + 13);
         ctx.stroke();
       }
     }

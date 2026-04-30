@@ -12,6 +12,8 @@ export const MODES = {
     name: 'CIVILIAN',
     subtitle: '一般市民の生存レベル',
     cost: 3000,
+    baseReward: 3000,
+    targetTime: 60,
     wordLengthMin: 2,
     wordLengthMax: 5,
     targetScore: 3000,
@@ -27,6 +29,8 @@ export const MODES = {
     name: 'SOLDIER',
     subtitle: 'プロの戦闘員レベル',
     cost: 5000,
+    baseReward: 5000,
+    targetTime: 90,
     wordLengthMin: 5,
     wordLengthMax: 10,
     targetScore: 5000,
@@ -42,6 +46,8 @@ export const MODES = {
     name: 'PROFESSIONAL',
     subtitle: 'エリートエージェント向け',
     cost: 10000,
+    baseReward: 10000,
+    targetTime: 120,
     wordLengthMin: 10,
     wordLengthMax: 20,
     targetScore: 10000,
@@ -113,12 +119,15 @@ export const BITE_DAMAGE = 25;            // HP lost per bite
 export const COMBO_BONUS_THRESHOLD = 50;  // combo count for HP bonus
 export const COMBO_HEAL_BONUS = 10;       // HP recovered
 
-// Rank Thresholds (surplus over cost)
+// Rank Thresholds (Evaluation Score based, max 10000)
 export const RANKS = {
-  S: { label: 'S', title: 'LEGENDARY SURVIVOR', minSurplus: 5000, reward: '無限ハンドガン' },
-  A: { label: 'A', title: 'ELITE AGENT', minSurplus: 2000, reward: 'タクティカルベスト' },
-  B: { label: 'B', title: 'CIVILIAN SURVIVOR', minSurplus: 0, reward: '救急スプレー' },
-  FAIL: { label: '-', title: 'MISSION FAILED', minSurplus: -Infinity, reward: 'なし' },
+  SSS: { label: 'SSS', title: 'GOD TIER SURVIVOR', minScore: 10000, bonusRate: 2.0, reward: '無限ロケットランチャー' },
+  SS:  { label: 'SS', title: 'ULTIMATE SURVIVOR', minScore: 9000, bonusRate: 1.5, reward: '無限マグナム' },
+  S:   { label: 'S', title: 'LEGENDARY SURVIVOR', minScore: 8000, bonusRate: 1.0, reward: '無限ハンドガン' },
+  A:   { label: 'A', title: 'ELITE AGENT', minScore: 6000, bonusRate: 0.5, reward: 'タクティカルベスト' },
+  B:   { label: 'B', title: 'CIVILIAN SURVIVOR', minScore: 4000, bonusRate: 0.0, reward: '救急スプレー' },
+  C:   { label: 'C', title: 'ROOKIE', minScore: 0, bonusRate: -0.5, reward: 'ハンドガンの弾' },
+  FAIL: { label: '-', title: 'MISSION FAILED', minScore: -Infinity, bonusRate: -1.0, reward: 'なし' },
 };
 
 // Colors

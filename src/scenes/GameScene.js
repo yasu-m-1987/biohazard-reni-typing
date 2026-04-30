@@ -51,6 +51,7 @@ export class GameScene extends Scene {
     this.totalHits = 0;
     this.totalMisses = 0;
     this.kills = 0;
+    this.damageTaken = 0;
     this.creatures = [];
     this.currentTarget = null;
     this.gameOver = false;
@@ -360,6 +361,7 @@ export class GameScene extends Scene {
         this.combo = 0;
         const actualDamage = Math.max(1, BITE_DAMAGE - this.biteDamageReduction);
         this.hp -= actualDamage;
+        this.damageTaken++;
         this.game.audio.playBite();
         this.screenShake.trigger(12, 0.4);
         this.hud.flashScreen('rgba(139, 0, 0, 0.4)');
@@ -414,6 +416,8 @@ export class GameScene extends Scene {
         accuracy: this.totalHits + this.totalMisses > 0
           ? Math.round((this.totalHits / (this.totalHits + this.totalMisses)) * 100)
           : 0,
+        time: this.gameTime,
+        damageTaken: this.damageTaken,
         isClear: this.isClear,
       });
     }, 2500);
